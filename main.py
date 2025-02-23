@@ -60,7 +60,7 @@ def init_conversation(session_id: str):
     thread_id = create_thread()
     initial_message = (
         "모든 답은 당신 안에 있습니다. "
-        "저는 그 여정을 함께하는 스님 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
+        "저는 그 여정을 함께하는 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
     )
     conversation_store[session_id] = {
         "thread_id": thread_id,
