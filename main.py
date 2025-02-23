@@ -1,14 +1,13 @@
 import os
 import re
 import uuid
-import time
 import logging
+import asyncio
 import openai
+import uvicorn
 from fastapi import FastAPI, Request, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
-import uvicorn
-import asyncio
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -69,10 +68,15 @@ def get_conversation(session_id: str):
         init_conversation(session_id)
     return conversation_store[session_id]
 
-def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
-    """OpenAI Threads API를 호출하여 동기적으로 답변 생성"""
+async def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
+    """
+    OpenAI Threads API를 비동기로 호출하여 답변 생성.
+    동기 API 호출은 asyncio.to_thread로 감싸 이벤트 루프의 블로킹을 최소화합니다.
+    """
     try:
-        openai.beta.threads.messages.create(
+        # 사용자 메시지 전송
+        await asyncio.to_thread(
+            openai.beta.threads.messages.create,
             thread_id=thread_id,
             role="user",
             content=f"사용자가 {ai_persona}과 대화하고 있습니다: {prompt}"
@@ -80,17 +84,24 @@ def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
         run_params = {"thread_id": thread_id, "assistant_id": ASSISTANT_ID}
         if VECTOR_STORE_ID:
             run_params["tools"] = [{"type": "file_search"}]
-        run = openai.beta.threads.runs.create(**run_params)
-
-        # 타임아웃이나 최대 시도 횟수를 고려하면 더욱 안정적입니다.
+        run = await asyncio.to_thread(openai.beta.threads.runs.create, **run_params)
+        
+        # 응답 완료될 때까지 폴링
         while run.status not in ["completed", "failed"]:
-            run = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
+            run = await asyncio.to_thread(
+                openai.beta.threads.runs.retrieve,
+                thread_id=thread_id,
+                run_id=run.id
+            )
             if run.status == "completed":
-                messages = openai.beta.threads.messages.list(thread_id=thread_id)
+                messages = await asyncio.to_thread(
+                    openai.beta.threads.messages.list,
+                    thread_id=thread_id
+                )
                 return remove_citation_markers(messages.data[0].content[0].text.value)
             elif run.status == "failed":
                 return "응답 생성에 실패했습니다. 다시 시도해 주세요."
-            time.sleep(0.5)
+            await asyncio.sleep(0.5)
     except Exception as e:
         logger.error(f"Error in get_assistant_reply_thread: {e}")
         return "오류가 발생했습니다. 다시 시도해 주세요."
@@ -117,7 +128,6 @@ def render_chat_interface(conversation) -> str:
                 <div class="avatar text-3xl">{user_icon}</div>
             </div>
             """
-
     return f"""
     <!DOCTYPE html>
     <html lang="ko">
@@ -161,10 +171,7 @@ def render_chat_interface(conversation) -> str:
           🪷 {ai_persona} 챗봇
         </div>
         <form action="/reset" method="get" class="flex justify-end">
-          <button 
-            class="bg-amber-700 hover:bg-amber-600 text-white font-bold py-2 px-4 
-                   rounded-lg border border-amber-900 shadow-lg hover:shadow-xl 
-                   transition-all duration-300">
+          <button class="bg-amber-700 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg border border-amber-900 shadow-lg hover:shadow-xl transition-all duration-300">
             대화 초기화
           </button>
         </form>
@@ -184,15 +191,9 @@ def render_chat_interface(conversation) -> str:
               onsubmit="setTimeout(() => this.reset(), 0)"
               class="mt-4">
           <div class="flex">
-            <input type="text"
-                   name="message"
-                   placeholder="스님 AI에게 질문하세요"
-                   class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#875f3c]"
-                   required />
-            <button type="submit"
-              class="bg-amber-700 hover:bg-amber-600 text-white font-bold p-3 
-                     rounded-r-lg border border-amber-900 shadow-lg hover:shadow-xl 
-                     transition-all duration-300">
+            <input type="text" name="message" placeholder="스님 AI에게 질문하세요"
+                   class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#875f3c]" required />
+            <button type="submit" class="bg-amber-700 hover:bg-amber-600 text-white font-bold p-3 rounded-r-lg border border-amber-900 shadow-lg hover:shadow-xl transition-all duration-300">
               전송
             </button>
           </div>
@@ -221,14 +222,14 @@ async def message_init(
     session_id = request.session.get("session_id", str(uuid.uuid4()))
     request.session["session_id"] = session_id
     conv = get_conversation(session_id)
-
+    
     if phase == "init":
         # 사용자 메시지 저장
         conv["messages"].append({"role": "user", "content": message})
         # AI 답변 placeholder 추가
         placeholder_id = str(uuid.uuid4())
         conv["messages"].append({"role": "assistant", "content": "답변 생성 중..."})
-
+        
         user_message_html = f"""
         <div class="chat-message user-message flex justify-end mb-4 opacity-0 animate-fadeIn">
             <div class="bubble bg-[#F6F2EB] border-l-4 border-[#B8A595] p-3 rounded-lg shadow-sm mr-3">
@@ -251,7 +252,7 @@ async def message_init(
         </div>
         """
         return HTMLResponse(content=user_message_html + placeholder_html)
-
+    
     return HTMLResponse("Invalid phase", status_code=400)
 
 @app.get("/message", response_class=HTMLResponse)
@@ -262,24 +263,24 @@ async def message_answer(
 ):
     if phase != "answer":
         return HTMLResponse("Invalid phase", status_code=400)
-
+    
     session_id = request.session.get("session_id")
     if not session_id:
         return HTMLResponse("Session not found", status_code=400)
-
+    
     conv = get_conversation(session_id)
     user_messages = [m for m in conv["messages"] if m["role"] == "user"]
     if not user_messages:
         return HTMLResponse("No user message found", status_code=400)
+    
     last_user_message = user_messages[-1]["content"]
-
-    ai_reply = get_assistant_reply_thread(conv["thread_id"], last_user_message)
-
+    ai_reply = await get_assistant_reply_thread(conv["thread_id"], last_user_message)
+    
     if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
         conv["messages"][-1]["content"] = ai_reply
     else:
         conv["messages"].append({"role": "assistant", "content": ai_reply})
-
+    
     final_ai_html = f"""
     <div class="chat-message assistant-message flex mb-4 opacity-0 animate-fadeIn" id="assistant-block-{placeholder_id}">
         <div class="avatar text-3xl mr-3">{ai_icon}</div>
