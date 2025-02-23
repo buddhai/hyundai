@@ -100,17 +100,16 @@ def convert_newlines_to_br(text: str) -> str:
 
 def render_chat_interface(conversation) -> str:
     """
-    - static 폴더 없이 외부 이미지만 사용
-    - 말풍선 불투명 배경
-    - 버튼 파란색 계열
+    - 채팅 말풍선은 이제 투명도 없이 항상 불투명하게 표시
+    - 버튼 색상은 파란색 계열로 변경
+    - PC와 모바일에서 각각 다른 좌우 여백 적용
     """
     messages_html = ""
     for msg in conversation["messages"]:
         rendered_content = convert_newlines_to_br(msg["content"])
         if msg["role"] == "assistant":
-            # AI 말풍선
             messages_html += f"""
-            <div class="chat-message assistant-message flex mb-4 opacity-0 animate-fadeIn">
+            <div class="chat-message assistant-message flex mb-4 animate-fadeIn">
                 <div class="avatar text-3xl mr-3">{ai_icon}</div>
                 <div class="bubble bg-slate-100 border-l-4 border-slate-400 p-3 rounded-lg shadow-sm">
                     {rendered_content}
@@ -118,9 +117,8 @@ def render_chat_interface(conversation) -> str:
             </div>
             """
         else:
-            # 사용자 말풍선
             messages_html += f"""
-            <div class="chat-message user-message flex justify-end mb-4 opacity-0 animate-fadeIn">
+            <div class="chat-message user-message flex justify-end mb-4 animate-fadeIn">
                 <div class="bubble bg-white border-l-4 border-gray-400 p-3 rounded-lg shadow-sm mr-3">
                     {rendered_content}
                 </div>
@@ -147,7 +145,7 @@ def render_chat_interface(conversation) -> str:
         }}
         body {{
           font-family: 'Noto Sans KR', sans-serif;
-          background: url('https://cdn.pixabay.com/photo/2017/04/13/07/25/grunge-texture-2226815_1280.jpg') no-repeat center center;
+          background: url('https://picsum.photos/id/1062/1200/800') no-repeat center center;
           background-size: cover;
           background-color: rgba(246, 242, 235, 0.8);
           background-blend-mode: lighten;
@@ -193,7 +191,6 @@ def render_chat_interface(conversation) -> str:
           <span class="text-xl font-bold text-[#3F3A36]">{ai_persona}</span>
         </div>
         <form action="/reset" method="get" class="flex justify-end">
-          <!-- 버튼 색상: 파란색 계열 -->
           <button class="bg-blue-700 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg border border-blue-900 shadow-lg hover:shadow-xl transition-all duration-300">
             대화 초기화
           </button>
@@ -263,7 +260,7 @@ async def message_init(
         conv["messages"].append({"role": "assistant", "content": "답변 생성 중..."})
         
         user_message_html = f"""
-        <div class="chat-message user-message flex justify-end mb-4 opacity-0 animate-fadeIn">
+        <div class="chat-message user-message flex justify-end mb-4 animate-fadeIn">
             <div class="bubble bg-white border-l-4 border-gray-400 p-3 rounded-lg shadow-sm mr-3">
                 {convert_newlines_to_br(message)}
             </div>
@@ -271,7 +268,7 @@ async def message_init(
         </div>
         """
         placeholder_html = f"""
-        <div class="chat-message assistant-message flex mb-4 opacity-0 animate-fadeIn" id="assistant-block-{placeholder_id}">
+        <div class="chat-message assistant-message flex mb-4 animate-fadeIn" id="assistant-block-{placeholder_id}">
             <div class="avatar text-3xl mr-3">{ai_icon}</div>
             <div class="bubble bg-slate-100 border-l-4 border-slate-400 p-3 rounded-lg shadow-sm"
                  id="ai-msg-{placeholder_id}"
@@ -314,7 +311,7 @@ async def message_answer(
         conv["messages"].append({"role": "assistant", "content": ai_reply})
     
     final_ai_html = f"""
-    <div class="chat-message assistant-message flex mb-4 opacity-0 animate-fadeIn" id="assistant-block-{placeholder_id}">
+    <div class="chat-message assistant-message flex mb-4 animate-fadeIn" id="assistant-block-{placeholder_id}">
         <div class="avatar text-3xl mr-3">{ai_icon}</div>
         <div class="bubble bg-slate-100 border-l-4 border-slate-400 p-3 rounded-lg shadow-sm">
             {convert_newlines_to_br(ai_reply)}
