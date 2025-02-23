@@ -10,8 +10,6 @@ from fastapi import FastAPI, Request, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
-
-# HTML 이스케이프와 줄바꿈 처리용
 import html
 
 load_dotenv()
@@ -30,9 +28,10 @@ if not OPENAI_API_KEY:
 openai.api_key = OPENAI_API_KEY
 
 # 아이콘 및 페르소나 설정
+# 로고는 헤더에 추가되므로 기존 연꽃 아이콘은 유지하거나 생략 가능
 ai_icon = "🪷"
 user_icon = "🧑🏻‍💻"
-ai_persona = "스님 AI"
+ai_persona = "스님 AI 챗봇"
 
 # FastAPI 앱 생성 및 세션 미들웨어 추가
 app = FastAPI()
@@ -120,16 +119,13 @@ def convert_newlines_to_br(text: str) -> str:
 
 def render_chat_interface(conversation) -> str:
     """
-    HTMX + Tailwind CSS 기반 채팅 UI (레이어 분리)
-    - 마크다운 없이 줄바꿈만 처리
-    - 상단 헤더
-    - 채팅 메시지 영역 (스크롤 가능, 헤더와 입력창 사이)
-    - 입력창은 항상 하단에 고정
-    - 새로운 메시지가 추가되면 자동 스크롤
+    HTMX + Tailwind CSS 기반 채팅 UI (레이어 분리, 줄바꿈만 처리)
+    - 상단 헤더: 로고와 제목을 좌측에 배치하여 PC와 모바일에서 모두 자연스럽게 표시
+    - 채팅 메시지 영역: 헤더와 입력창 사이에 스크롤 가능 영역
+    - 입력창: 항상 하단에 고정, 새로운 메시지 도착 시 자동 스크롤
     """
     messages_html = ""
     for msg in conversation["messages"]:
-        # 줄바꿈 -> <br> 변환
         rendered_content = convert_newlines_to_br(msg["content"])
 
         if msg["role"] == "assistant":
@@ -151,7 +147,6 @@ def render_chat_interface(conversation) -> str:
             </div>
             """
 
-    # HTML 전체 구조
     return f"""
     <!DOCTYPE html>
     <html lang="ko">
@@ -183,17 +178,17 @@ def render_chat_interface(conversation) -> str:
         .animate-fadeIn {{
           animation: fadeIn 0.4s ease-in-out forwards;
         }}
-        /* 채팅 메시지 영역은 헤더와 입력창 사이에 위치 */
+        /* 채팅 메시지 영역: 헤더와 입력창 사이에 위치 */
         #chat-messages {{
           position: absolute;
-          top: 60px; /* 헤더 높이에 맞춰 조절 */
+          top: 60px; /* 헤더 높이 (조절 가능) */
           bottom: 70px; /* 입력창 높이 + 여백 */
           left: 0;
           right: 0;
           overflow-y: auto;
           padding: 1rem;
         }}
-        /* 입력창 컨테이너는 항상 하단에 고정 */
+        /* 입력창 컨테이너: 항상 하단에 고정 */
         #chat-input {{
           position: fixed;
           bottom: 0;
@@ -206,10 +201,12 @@ def render_chat_interface(conversation) -> str:
       </style>
     </head>
     <body>
-      <!-- 상단 헤더 -->
+      <!-- 상단 헤더: 로고와 제목을 좌측에 배치 -->
       <div class="flex-shrink-0 w-full py-2 px-4 flex justify-between items-center bg-white bg-opacity-70">
-        <div class="text-xl font-bold text-[#3F3A36]">
-          🪷 {ai_persona} 챗봇
+        <div class="flex items-center">
+          <!-- 로고 이미지 (경로 수정 필요) -->
+          <img src="/static/logo.png" alt="Logo" class="h-10 mr-2">
+          <span class="text-xl font-bold text-[#3F3A36]">{ai_persona}</span>
         </div>
         <form action="/reset" method="get" class="flex justify-end">
           <button class="bg-amber-700 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg border border-amber-900 shadow-lg hover:shadow-xl transition-all duration-300">
@@ -281,9 +278,7 @@ async def message_init(
     conv = get_conversation(session_id)
     
     if phase == "init":
-        # 사용자 메시지 저장
         conv["messages"].append({"role": "user", "content": message})
-        # AI 답변 placeholder 추가
         placeholder_id = str(uuid.uuid4())
         conv["messages"].append({"role": "assistant", "content": "답변 생성 중..."})
         
