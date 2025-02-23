@@ -218,7 +218,7 @@ def render_chat_interface(conversation) -> str:
           <div class="flex items-center">
             <!-- 로고 -->
             <img 
-              src="https://raw.githubusercontent.com/buddhai/hyundai/master/%ED%98%84%EB%8C%80%EB%B6%88%EA%B5%90%20%EB%A1%9C%EA%B3%A0.png" 
+              src="https://github.com/buddhai/hyundai/raw/master/%ED%98%84%EB%8C%80%EB%B6%88%EA%B5%90%20%EB%A1%9C%EA%B3%A0.png" 
               alt="현대불교 로고" 
               class="h-10 mr-2"
             />
