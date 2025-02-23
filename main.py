@@ -3,25 +3,21 @@ import re
 import uuid
 import time
 import logging
-
 import openai
 from fastapi import FastAPI, Request, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 import uvicorn
-
-# (옵션) 비동기 처리를 위한 asyncio
 import asyncio
-
-# .env 파일의 환경 변수를 로드
 from dotenv import load_dotenv
+
 load_dotenv()
 
 # 로깅 설정
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 환경변수에서 설정값 불러오기
+# 환경 변수 설정
 OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
 ASSISTANT_ID = os.environ.get("ASSISTANT_ID", "default_assistant_id")
 VECTOR_STORE_ID = os.environ.get("VECTOR_STORE_ID", "")
@@ -30,12 +26,12 @@ if not OPENAI_API_KEY:
     logger.error("OPENAI_API_KEY 환경 변수가 설정되지 않았습니다.")
 openai.api_key = OPENAI_API_KEY
 
-# 상수 정의
+# 아이콘 및 페르소나 설정
 ai_icon = "🪷"
 user_icon = "🧑🏻‍💻"
 ai_persona = "스님 AI"
 
-# FastAPI 앱 생성 & 세션 미들웨어 추가
+# FastAPI 앱 생성 및 세션 미들웨어 추가
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 
@@ -43,11 +39,11 @@ app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 conversation_store = {}
 
 def remove_citation_markers(text: str) -> str:
-    """인용 마커 제거 (OpenAI Threads 예시)"""
+    """인용 마커 제거 (예: OpenAI Threads API 결과)"""
     return re.sub(r'【\d+:\d+†source】', '', text)
 
 def create_thread():
-    """beta threads API를 사용하여 새로운 스레드 생성"""
+    """새 스레드 생성 (OpenAI beta Threads API 사용)"""
     try:
         thread = openai.beta.threads.create()
         return thread.id
@@ -60,7 +56,7 @@ def init_conversation(session_id: str):
     thread_id = create_thread()
     initial_message = (
         "모든 답은 당신 안에 있습니다. "
-        "저는 그 여정을 함께하는 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
+        "저는 그 여정을 함께하는 스님 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
     )
     conversation_store[session_id] = {
         "thread_id": thread_id,
@@ -74,7 +70,7 @@ def get_conversation(session_id: str):
     return conversation_store[session_id]
 
 def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
-    """동기적으로 OpenAI Threads API를 호출하여 답변 생성"""
+    """OpenAI Threads API를 호출하여 동기적으로 답변 생성"""
     try:
         openai.beta.threads.messages.create(
             thread_id=thread_id,
@@ -86,6 +82,7 @@ def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
             run_params["tools"] = [{"type": "file_search"}]
         run = openai.beta.threads.runs.create(**run_params)
 
+        # 타임아웃이나 최대 시도 횟수를 고려하면 더욱 안정적입니다.
         while run.status not in ["completed", "failed"]:
             run = openai.beta.threads.runs.retrieve(thread_id=thread_id, run_id=run.id)
             if run.status == "completed":
@@ -99,11 +96,10 @@ def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
         return "오류가 발생했습니다. 다시 시도해 주세요."
 
 def render_chat_interface(conversation) -> str:
-    """HTMX + TailwindCSS 기반 채팅 UI (우디 + 차분한 무드 + 짙은 버튼색)"""
+    """HTMX + Tailwind CSS 기반 채팅 UI (반응형 디자인 포함)"""
     messages_html = ""
     for msg in conversation["messages"]:
         if msg["role"] == "assistant":
-            # 왼쪽 정렬 (AI)
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 opacity-0 animate-fadeIn">
                 <div class="avatar text-3xl mr-3">{ai_icon}</div>
@@ -113,7 +109,6 @@ def render_chat_interface(conversation) -> str:
             </div>
             """
         else:
-            # 오른쪽 정렬 (사용자)
             messages_html += f"""
             <div class="chat-message user-message flex justify-end mb-4 opacity-0 animate-fadeIn">
                 <div class="bubble bg-[#F6F2EB] border-l-4 border-[#B8A595] p-3 rounded-lg shadow-sm mr-3">
@@ -128,13 +123,13 @@ def render_chat_interface(conversation) -> str:
     <html lang="ko">
     <head>
       <meta charset="UTF-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>{ai_persona}</title>
       <!-- HTMX -->
       <script src="https://unpkg.com/htmx.org@1.7.0"></script>
       <!-- Tailwind CSS -->
       <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
       <style>
-        /* 배경: 우드 텍스처 + 반투명 오버레이 */
         body {{
           font-family: 'Noto Sans KR', sans-serif;
           background: url('https://picsum.photos/id/1062/1200/800') no-repeat center center fixed;
@@ -150,7 +145,6 @@ def render_chat_interface(conversation) -> str:
           box-shadow: 0 8px 16px rgba(0,0,0,0.15);
           backdrop-filter: blur(4px);
         }}
-        /* 새 말풍선 서서히 나타나는 애니메이션 */
         @keyframes fadeIn {{
           0% {{ opacity: 0; transform: translateY(10px); }}
           100% {{ opacity: 1; transform: translateY(0); }}
@@ -161,41 +155,28 @@ def render_chat_interface(conversation) -> str:
       </style>
     </head>
     <body class="min-h-screen flex flex-col">
-      <!-- 상단 헤더/바 -->
+      <!-- 상단 헤더 -->
       <div class="w-full py-4 px-6 flex justify-between items-center">
         <div class="text-xl font-bold text-[#3F3A36]">
           🪷 {ai_persona} 챗봇
         </div>
-        <!-- 대화 초기화 버튼 (오른쪽 정렬) -->
         <form action="/reset" method="get" class="flex justify-end">
           <button 
             class="bg-amber-700 hover:bg-amber-600 text-white font-bold py-2 px-4 
-                  rounded-lg border border-amber-900 shadow-lg hover:shadow-xl 
-                  transition-all duration-300 opacity-100">
+                   rounded-lg border border-amber-900 shadow-lg hover:shadow-xl 
+                   transition-all duration-300">
             대화 초기화
           </button>
-
-
-
-
-
-
-
-
-
-
         </form>
       </div>
-
-      <!-- 채팅 컨테이너 -->
-      <div class="chat-container p-6 flex flex-col flex-grow">
+      
+      <!-- 채팅 컨테이너 (반응형 패딩 적용) -->
+      <div class="chat-container p-4 sm:p-6 md:p-8 lg:p-12 flex flex-col flex-grow">
         <!-- 메시지 표시 영역 -->
         <div id="chat-messages" class="flex-grow mb-4">
           {messages_html}
         </div>
-
         <!-- 사용자 입력 폼 -->
-        <!-- 단순 POST -> (이 예시에서는) phase=init로 사용자/placeholder 동시에 -->
         <form id="chat-form"
               hx-post="/message?phase=init"
               hx-target="#chat-messages"
@@ -210,11 +191,10 @@ def render_chat_interface(conversation) -> str:
                    required />
             <button type="submit"
               class="bg-amber-700 hover:bg-amber-600 text-white font-bold p-3 
-                    rounded-r-lg border border-amber-900 shadow-lg hover:shadow-xl 
-                    transition-all duration-300 opacity-100">
+                     rounded-r-lg border border-amber-900 shadow-lg hover:shadow-xl 
+                     transition-all duration-300">
               전송
             </button>
-
           </div>
         </form>
       </div>
@@ -235,23 +215,20 @@ async def message_init(
     phase: str = Query(None)
 ):
     """
-    phase=init -> 사용자 메시지 + '답변 생성 중...' 말풍선 (+ hx-get=... 로 자동 2단계 요청)
-    phase=answer -> 실제 답변 생성 후 placeholder 교체
+    phase=init: 사용자 메시지 전송 후 placeholder 추가
+    phase=answer: 실제 AI 답변을 받아 placeholder 교체
     """
     session_id = request.session.get("session_id", str(uuid.uuid4()))
     request.session["session_id"] = session_id
     conv = get_conversation(session_id)
 
-    # 사용자 메시지 추가
     if phase == "init":
-        # 1) 사용자 말풍선
+        # 사용자 메시지 저장
         conv["messages"].append({"role": "user", "content": message})
-
-        # 2) placeholder '답변 생성 중...'
+        # AI 답변 placeholder 추가
         placeholder_id = str(uuid.uuid4())
         conv["messages"].append({"role": "assistant", "content": "답변 생성 중..."})
 
-        # 사용자 말풍선 HTML
         user_message_html = f"""
         <div class="chat-message user-message flex justify-end mb-4 opacity-0 animate-fadeIn">
             <div class="bubble bg-[#F6F2EB] border-l-4 border-[#B8A595] p-3 rounded-lg shadow-sm mr-3">
@@ -260,7 +237,6 @@ async def message_init(
             <div class="avatar text-3xl">{user_icon}</div>
         </div>
         """
-        # AI placeholder 말풍선 (자동 GET phase=answer)
         placeholder_html = f"""
         <div class="chat-message assistant-message flex mb-4 opacity-0 animate-fadeIn" id="assistant-block-{placeholder_id}">
             <div class="avatar text-3xl mr-3">{ai_icon}</div>
@@ -276,7 +252,6 @@ async def message_init(
         """
         return HTMLResponse(content=user_message_html + placeholder_html)
 
-    # phase 값이 없거나 잘못된 경우
     return HTMLResponse("Invalid phase", status_code=400)
 
 @app.get("/message", response_class=HTMLResponse)
@@ -285,9 +260,6 @@ async def message_answer(
     placeholder_id: str = Query(None),
     phase: str = Query(None)
 ):
-    """
-    phase=answer -> AI 실제 답변 생성 후 placeholder 교체
-    """
     if phase != "answer":
         return HTMLResponse("Invalid phase", status_code=400)
 
@@ -296,24 +268,18 @@ async def message_answer(
         return HTMLResponse("Session not found", status_code=400)
 
     conv = get_conversation(session_id)
-
-    # 마지막 user 메시지 찾기
     user_messages = [m for m in conv["messages"] if m["role"] == "user"]
     if not user_messages:
         return HTMLResponse("No user message found", status_code=400)
-
     last_user_message = user_messages[-1]["content"]
 
-    # AI 최종 답변 생성
     ai_reply = get_assistant_reply_thread(conv["thread_id"], last_user_message)
 
-    # conv의 마지막 assistant를 최종 답변으로 수정
     if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
         conv["messages"][-1]["content"] = ai_reply
     else:
         conv["messages"].append({"role": "assistant", "content": ai_reply})
 
-    # 최종 답변 말풍선 HTML -> placeholder 교체
     final_ai_html = f"""
     <div class="chat-message assistant-message flex mb-4 opacity-0 animate-fadeIn" id="assistant-block-{placeholder_id}">
         <div class="avatar text-3xl mr-3">{ai_icon}</div>
