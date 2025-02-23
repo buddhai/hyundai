@@ -147,7 +147,7 @@ def render_chat_interface(conversation) -> str:
         }}
         body {{
           font-family: 'Noto Sans KR', sans-serif;
-          background: url('https://picsum.photos/id/1062/1200/800') no-repeat center center;
+          background: url('https://cdn.pixabay.com/photo/2017/04/13/07/25/grunge-texture-2226815_1280.jpg') no-repeat center center;
           background-size: cover;
           background-color: rgba(246, 242, 235, 0.8);
           background-blend-mode: lighten;
