@@ -108,8 +108,11 @@ async def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
 
 def render_chat_interface(conversation) -> str:
     """
-    HTMX + Tailwind CSS 기반 채팅 UI (반응형 디자인 + 모바일 키보드 대응)
-    PC/모바일 모두에서 입력창이 잘리지 않도록 수정.
+    HTMX + Tailwind CSS 기반 채팅 UI (레이어 분리)
+      - 상단 헤더
+      - 채팅 메시지 영역 (스크롤 가능, 헤더와 입력창 사이)
+      - 입력창은 항상 하단에 고정
+      - 새로운 메시지가 추가되면 자동 스크롤하여 최신 메시지가 보이도록 처리
     """
     messages_html = ""
     for msg in conversation["messages"]:
@@ -131,7 +134,6 @@ def render_chat_interface(conversation) -> str:
                 <div class="avatar text-3xl">{user_icon}</div>
             </div>
             """
-    # HTML 전체 구조
     return f"""
     <!DOCTYPE html>
     <html lang="ko">
@@ -163,52 +165,79 @@ def render_chat_interface(conversation) -> str:
         .animate-fadeIn {{
           animation: fadeIn 0.4s ease-in-out forwards;
         }}
+        /* 채팅 메시지 영역은 헤더와 입력창 사이에 위치 */
+        #chat-messages {{
+          position: absolute;
+          top: 60px; /* 헤더 높이에 맞춰 조절 */
+          bottom: 70px; /* 입력창 높이 + 여백 */
+          left: 0;
+          right: 0;
+          overflow-y: auto;
+          padding: 1rem;
+        }}
+        /* 입력창 컨테이너는 항상 하단에 고정 */
+        #chat-input {{
+          position: fixed;
+          bottom: 0;
+          left: 0;
+          right: 0;
+          background-color: white;
+          border-top: 1px solid #ddd;
+          padding: 0.5rem 1rem;
+        }}
       </style>
     </head>
-    <body class="h-screen flex flex-col">
+    <body>
       <!-- 상단 헤더 -->
       <div class="flex-shrink-0 w-full py-2 px-4 flex justify-between items-center bg-white bg-opacity-70">
         <div class="text-xl font-bold text-[#3F3A36]">
           🪷 {ai_persona} 챗봇
         </div>
         <form action="/reset" method="get" class="flex justify-end">
-          <button 
-            class="bg-amber-700 hover:bg-amber-600 text-white font-bold py-2 px-4 
-                   rounded-lg border border-amber-900 shadow-lg hover:shadow-xl 
-                   transition-all duration-300">
+          <button class="bg-amber-700 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg border border-amber-900 shadow-lg hover:shadow-xl transition-all duration-300">
             대화 초기화
           </button>
         </form>
       </div>
       
-      <!-- 채팅 컨테이너 (스크롤 가능) -->
-      <div class="flex-1 overflow-y-auto p-2 sm:p-6 md:p-8 lg:p-12">
-        <!-- 메시지 표시 영역 -->
-        <div id="chat-messages" class="mb-4">
-          {messages_html}
-        </div>
-        <!-- 사용자 입력 폼 -->
+      <!-- 채팅 메시지 영역 -->
+      <div id="chat-messages">
+        {messages_html}
+      </div>
+      
+      <!-- 입력창 (항상 하단 고정) -->
+      <div id="chat-input">
         <form id="chat-form"
               hx-post="/message?phase=init"
               hx-target="#chat-messages"
               hx-swap="beforeend"
               onsubmit="setTimeout(() => this.reset(), 0)"
-              class="mt-4">
-          <div class="flex">
-            <input type="text"
-                   name="message"
-                   placeholder="스님 AI에게 질문하세요"
-                   class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#875f3c]"
-                   required />
-            <button type="submit"
-              class="bg-amber-700 hover:bg-amber-600 text-white font-bold p-3 
-                     rounded-r-lg border border-amber-900 shadow-lg hover:shadow-xl 
-                     transition-all duration-300">
-              전송
-            </button>
-          </div>
+              class="flex">
+          <input type="text"
+                 name="message"
+                 placeholder="스님 AI에게 질문하세요"
+                 class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#875f3c]"
+                 required />
+          <button type="submit"
+                  class="bg-amber-700 hover:bg-amber-600 text-white font-bold p-3 rounded-r-lg border border-amber-900 shadow-lg hover:shadow-xl transition-all duration-300">
+            전송
+          </button>
         </form>
       </div>
+      
+      <!-- 자동 스크롤 스크립트 -->
+      <script>
+        function scrollToBottom() {{
+          var chatMessages = document.getElementById("chat-messages");
+          chatMessages.scrollTop = chatMessages.scrollHeight;
+        }}
+        document.addEventListener("htmx:afterSwap", (event) => {{
+          if (event.detail.target.id === "chat-messages") {{
+            scrollToBottom();
+          }}
+        }});
+        window.addEventListener("load", scrollToBottom);
+      </script>
     </body>
     </html>
     """
