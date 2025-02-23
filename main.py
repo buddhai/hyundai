@@ -5,14 +5,10 @@ import logging
 import asyncio
 import openai
 import uvicorn
-
 from fastapi import FastAPI, Request, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
-
-# 추가: 마크다운 변환용
-from markdown import markdown
 
 load_dotenv()
 
@@ -32,7 +28,7 @@ openai.api_key = OPENAI_API_KEY
 # 아이콘 및 페르소나 설정
 ai_icon = "🪷"
 user_icon = "🧑🏻‍💻"
-ai_persona = "현대불교신문 AI"
+ai_persona = "스님 AI"
 
 # FastAPI 앱 생성 및 세션 미들웨어 추가
 app = FastAPI()
@@ -59,7 +55,7 @@ def init_conversation(session_id: str):
     thread_id = create_thread()
     initial_message = (
         "모든 답은 당신 안에 있습니다. "
-        "저는 그 여정을 함께하는 현대불교신문 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
+        "저는 그 여정을 함께하는 스님 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
     )
     conversation_store[session_id] = {
         "thread_id": thread_id,
@@ -110,35 +106,22 @@ async def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
         logger.error(f"Error in get_assistant_reply_thread: {e}")
         return "오류가 발생했습니다. 다시 시도해 주세요."
 
-def markdown_to_html(text: str) -> str:
-    """
-    마크다운 텍스트 -> HTML 변환.
-    extensions:
-      - 'extra': fenced code blocks, tables, 등 확장 문법
-      - 'nl2br': 단순 줄바꿈도 <br>로 처리
-    """
-    return markdown(text, extensions=["extra", "nl2br"])
-
 def render_chat_interface(conversation) -> str:
     """
-    HTMX + Tailwind CSS 기반 채팅 UI (레이어 분리 + 마크다운/줄바꿈 지원)
-    - 상단 헤더
-    - 채팅 메시지 영역 (스크롤 가능, 헤더와 입력창 사이)
-    - 입력창은 항상 하단에 고정
-    - 마크다운 파싱 -> HTML 변환
-    - 새로운 메시지가 추가되면 자동 스크롤
+    HTMX + Tailwind CSS 기반 채팅 UI (레이어 분리)
+      - 상단 헤더
+      - 채팅 메시지 영역 (스크롤 가능, 헤더와 입력창 사이)
+      - 입력창은 항상 하단에 고정
+      - 새로운 메시지가 추가되면 자동 스크롤하여 최신 메시지가 보이도록 처리
     """
     messages_html = ""
     for msg in conversation["messages"]:
-        # 마크다운 파싱 후 HTML 변환
-        rendered_content = markdown_to_html(msg["content"])
-
         if msg["role"] == "assistant":
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 opacity-0 animate-fadeIn">
                 <div class="avatar text-3xl mr-3">{ai_icon}</div>
                 <div class="bubble bg-[#E3D5C9] border-l-4 border-[#B8A595] p-3 rounded-lg shadow-sm">
-                    {rendered_content}
+                    {msg['content']}
                 </div>
             </div>
             """
@@ -146,13 +129,11 @@ def render_chat_interface(conversation) -> str:
             messages_html += f"""
             <div class="chat-message user-message flex justify-end mb-4 opacity-0 animate-fadeIn">
                 <div class="bubble bg-[#F6F2EB] border-l-4 border-[#B8A595] p-3 rounded-lg shadow-sm mr-3">
-                    {rendered_content}
+                    {msg['content']}
                 </div>
                 <div class="avatar text-3xl">{user_icon}</div>
             </div>
             """
-
-    # HTML 전체 구조
     return f"""
     <!DOCTYPE html>
     <html lang="ko">
@@ -291,7 +272,7 @@ async def message_init(
         user_message_html = f"""
         <div class="chat-message user-message flex justify-end mb-4 opacity-0 animate-fadeIn">
             <div class="bubble bg-[#F6F2EB] border-l-4 border-[#B8A595] p-3 rounded-lg shadow-sm mr-3">
-                {markdown_to_html(message)}
+                {message}
             </div>
             <div class="avatar text-3xl">{user_icon}</div>
         </div>
@@ -334,7 +315,6 @@ async def message_answer(
     last_user_message = user_messages[-1]["content"]
     ai_reply = await get_assistant_reply_thread(conv["thread_id"], last_user_message)
     
-    # AI 메시지 덮어쓰기 (placeholder 교체)
     if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
         conv["messages"][-1]["content"] = ai_reply
     else:
@@ -344,7 +324,7 @@ async def message_answer(
     <div class="chat-message assistant-message flex mb-4 opacity-0 animate-fadeIn" id="assistant-block-{placeholder_id}">
         <div class="avatar text-3xl mr-3">{ai_icon}</div>
         <div class="bubble bg-[#E3D5C9] border-l-4 border-[#B8A595] p-3 rounded-lg shadow-sm">
-            {markdown_to_html(ai_reply)}
+            {ai_reply}
         </div>
     </div>
     """
