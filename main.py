@@ -142,7 +142,7 @@ def render_chat_interface(conversation) -> str:
         }}
         body {{
           font-family: 'Noto Sans KR', sans-serif;
-          background: url('https://picsum.photos/id/1062/1200/800') no-repeat center center;
+          background: url('https://db.kookje.co.kr/news2000/photo/2018/1012/L20181012.22026004789i1.jpg') no-repeat center center;
           background-size: cover;
           background-color: rgba(246, 242, 235, 0.8);
           background-blend-mode: lighten;
