@@ -107,7 +107,10 @@ async def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
         return "오류가 발생했습니다. 다시 시도해 주세요."
 
 def render_chat_interface(conversation) -> str:
-    """HTMX + Tailwind CSS 기반 채팅 UI (반응형 디자인 포함)"""
+    """
+    HTMX + Tailwind CSS 기반 채팅 UI (반응형 디자인 + 모바일 키보드 대응)
+    PC/모바일 모두에서 입력창이 잘리지 않도록 수정.
+    """
     messages_html = ""
     for msg in conversation["messages"]:
         if msg["role"] == "assistant":
@@ -128,6 +131,7 @@ def render_chat_interface(conversation) -> str:
                 <div class="avatar text-3xl">{user_icon}</div>
             </div>
             """
+    # HTML 전체 구조
     return f"""
     <!DOCTYPE html>
     <html lang="ko">
@@ -140,20 +144,17 @@ def render_chat_interface(conversation) -> str:
       <!-- Tailwind CSS -->
       <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
       <style>
+        html, body {{
+          height: 100%;
+          margin: 0;
+          padding: 0;
+        }}
         body {{
           font-family: 'Noto Sans KR', sans-serif;
-          background: url('https://picsum.photos/id/1062/1200/800') no-repeat center center fixed;
+          background: url('https://picsum.photos/id/1062/1200/800') no-repeat center center;
           background-size: cover;
           background-color: rgba(246, 242, 235, 0.8);
           background-blend-mode: lighten;
-        }}
-        .chat-container {{
-          max-width: 800px;
-          margin: 2rem auto;
-          background-color: rgba(255, 255, 255, 0.7);
-          border-radius: 0.75rem;
-          box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-          backdrop-filter: blur(4px);
         }}
         @keyframes fadeIn {{
           0% {{ opacity: 0; transform: translateY(10px); }}
@@ -164,23 +165,26 @@ def render_chat_interface(conversation) -> str:
         }}
       </style>
     </head>
-    <body class="min-h-screen flex flex-col">
+    <body class="h-screen flex flex-col">
       <!-- 상단 헤더 -->
-      <div class="w-full py-4 px-6 flex justify-between items-center">
+      <div class="flex-shrink-0 w-full py-2 px-4 flex justify-between items-center bg-white bg-opacity-70">
         <div class="text-xl font-bold text-[#3F3A36]">
           🪷 {ai_persona} 챗봇
         </div>
         <form action="/reset" method="get" class="flex justify-end">
-          <button class="bg-amber-700 hover:bg-amber-600 text-white font-bold py-2 px-4 rounded-lg border border-amber-900 shadow-lg hover:shadow-xl transition-all duration-300">
+          <button 
+            class="bg-amber-700 hover:bg-amber-600 text-white font-bold py-2 px-4 
+                   rounded-lg border border-amber-900 shadow-lg hover:shadow-xl 
+                   transition-all duration-300">
             대화 초기화
           </button>
         </form>
       </div>
       
-      <!-- 채팅 컨테이너 (반응형 패딩 적용) -->
-      <div class="chat-container p-4 sm:p-6 md:p-8 lg:p-12 flex flex-col flex-grow">
+      <!-- 채팅 컨테이너 (스크롤 가능) -->
+      <div class="flex-1 overflow-y-auto p-2 sm:p-6 md:p-8 lg:p-12">
         <!-- 메시지 표시 영역 -->
-        <div id="chat-messages" class="flex-grow mb-4">
+        <div id="chat-messages" class="mb-4">
           {messages_html}
         </div>
         <!-- 사용자 입력 폼 -->
@@ -191,9 +195,15 @@ def render_chat_interface(conversation) -> str:
               onsubmit="setTimeout(() => this.reset(), 0)"
               class="mt-4">
           <div class="flex">
-            <input type="text" name="message" placeholder="스님 AI에게 질문하세요"
-                   class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#875f3c]" required />
-            <button type="submit" class="bg-amber-700 hover:bg-amber-600 text-white font-bold p-3 rounded-r-lg border border-amber-900 shadow-lg hover:shadow-xl transition-all duration-300">
+            <input type="text"
+                   name="message"
+                   placeholder="스님 AI에게 질문하세요"
+                   class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#875f3c]"
+                   required />
+            <button type="submit"
+              class="bg-amber-700 hover:bg-amber-600 text-white font-bold p-3 
+                     rounded-r-lg border border-amber-900 shadow-lg hover:shadow-xl 
+                     transition-all duration-300">
               전송
             </button>
           </div>
