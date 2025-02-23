@@ -33,6 +33,7 @@ ai_persona = "스님 AI 챗봇"
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 
+# 세션별 대화를 저장할 전역 딕셔너리
 conversation_store = {}
 
 def remove_citation_markers(text: str) -> str:
@@ -99,11 +100,6 @@ def convert_newlines_to_br(text: str) -> str:
     return escaped.replace('\n', '<br>')
 
 def render_chat_interface(conversation) -> str:
-    """
-    - 채팅 말풍선은 이제 투명도 없이 항상 불투명하게 표시
-    - 버튼 색상은 파란색 계열로 변경
-    - PC와 모바일에서 각각 다른 좌우 여백 적용
-    """
     messages_html = ""
     for msg in conversation["messages"]:
         rendered_content = convert_newlines_to_br(msg["content"])
@@ -139,12 +135,11 @@ def render_chat_interface(conversation) -> str:
       <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
       <style>
         html, body {{
-          height: 100%;
-          margin: 0;
-          padding: 0;
+          margin: 0; padding: 0; height: 100%;
         }}
         body {{
           font-family: 'Noto Sans KR', sans-serif;
+          /* 배경 이미지 */
           background: url('https://picsum.photos/id/1062/1200/800') no-repeat center center;
           background-size: cover;
           background-color: rgba(246, 242, 235, 0.8);
@@ -152,74 +147,98 @@ def render_chat_interface(conversation) -> str:
         }}
         @keyframes fadeIn {{
           0% {{ opacity: 0; transform: translateY(10px); }}
-          100% {{ opacity: 1; transform: translateY(0); }}
+          100% {{ opacity: 1; transform: translateY(0); opacity: 1; }}
         }}
         .animate-fadeIn {{
           animation: fadeIn 0.4s ease-in-out forwards;
+        }}
+        /* 전체 컨테이너: 반투명 화이트 박스 */
+        .chat-container {{
+          position: relative;
+          width: 100%;
+          max-width: 800px;
+          height: 90vh; /* 높이를 90% 정도로 잡음 (원하는대로 조절 가능) */
+          margin: auto;
+          background-color: rgba(255, 255, 255, 0.8); /* 반투명 화이트 */
+          backdrop-filter: blur(4px);
+          border-radius: 0.75rem;
+          box-shadow: 0 8px 16px rgba(0,0,0,0.15);
+          overflow: hidden; /* 내부 절대 배치 시 스크롤바가 컨테이너를 벗어나지 않도록 */
+        }}
+        /* 헤더, 메시지, 입력창은 chat-container 내부에서 절대 배치 */
+        #chat-header {{
+          position: absolute;
+          top: 0;
+          left: 0; right: 0;
+          height: 60px;
+          background-color: rgba(255, 255, 255, 0.7);
+          backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          justify-content: space-between;
+          padding: 0 1rem;
         }}
         #chat-messages {{
           position: absolute;
           top: 60px;
           bottom: 70px;
-          left: 0;
-          right: 0;
+          left: 0; right: 0;
           overflow-y: auto;
           padding: 1rem;
         }}
         #chat-input {{
-          position: fixed;
+          position: absolute;
           bottom: 0;
-          left: 0;
-          right: 0;
-          background-color: white;
+          left: 0; right: 0;
+          height: 70px;
+          background-color: rgba(255, 255, 255, 0.7);
+          backdrop-filter: blur(4px);
+          display: flex;
+          align-items: center;
+          padding: 0 1rem;
           border-top: 1px solid #ddd;
-          padding: 0.5rem 1rem;
-        }}
-        @media (min-width: 768px) {{
-          #chat-header, #chat-messages, #chat-input {{
-            max-width: 800px;
-            margin: 0 auto;
-            left: 0; right: 0;
-          }}
         }}
       </style>
     </head>
-    <body>
-      <!-- 상단 헤더 (간단한 텍스트만) -->
-      <div id="chat-header" class="flex items-center justify-between w-full py-2 px-4 bg-white bg-opacity-70">
-        <div class="flex items-center">
-          <span class="text-xl font-bold text-[#3F3A36]">{ai_persona}</span>
+    <body class="h-full flex items-center justify-center">
+      <!-- 반투명 화이트 박스 컨테이너 -->
+      <div class="chat-container">
+        <!-- 헤더 -->
+        <div id="chat-header">
+          <div class="flex items-center">
+            <span class="text-xl font-bold text-[#3F3A36]">{ai_persona}</span>
+          </div>
+          <form action="/reset" method="get" class="flex justify-end">
+            <button class="bg-blue-700 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg border border-blue-900 shadow-lg hover:shadow-xl transition-all duration-300">
+              대화 초기화
+            </button>
+          </form>
         </div>
-        <form action="/reset" method="get" class="flex justify-end">
-          <button class="bg-blue-700 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg border border-blue-900 shadow-lg hover:shadow-xl transition-all duration-300">
-            대화 초기화
-          </button>
-        </form>
-      </div>
 
-      <!-- 채팅 메시지 영역 -->
-      <div id="chat-messages">
-        {messages_html}
-      </div>
+        <!-- 메시지 표시 영역 -->
+        <div id="chat-messages">
+          {messages_html}
+        </div>
 
-      <!-- 입력창 (항상 하단 고정) -->
-      <div id="chat-input">
-        <form id="chat-form"
-              hx-post="/message?phase=init"
-              hx-target="#chat-messages"
-              hx-swap="beforeend"
-              onsubmit="setTimeout(() => this.reset(), 0)"
-              class="flex">
-          <input type="text"
-                 name="message"
-                 placeholder="스님 AI에게 질문하세요"
-                 class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-[#875f3c]"
-                 required />
-          <button type="submit"
-                  class="bg-blue-700 hover:bg-blue-600 text-white font-bold p-3 rounded-r-lg border border-blue-900 shadow-lg hover:shadow-xl transition-all duration-300">
-            전송
-          </button>
-        </form>
+        <!-- 입력창 -->
+        <div id="chat-input">
+          <form id="chat-form"
+                hx-post="/message?phase=init"
+                hx-target="#chat-messages"
+                hx-swap="beforeend"
+                onsubmit="setTimeout(() => this.reset(), 0)"
+                class="flex w-full">
+            <input type="text"
+                   name="message"
+                   placeholder="스님 AI에게 질문하세요"
+                   class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                   required />
+            <button type="submit"
+                    class="bg-blue-700 hover:bg-blue-600 text-white font-bold p-3 rounded-r-lg border border-blue-900 shadow-lg hover:shadow-xl transition-all duration-300">
+              전송
+            </button>
+          </form>
+        </div>
       </div>
 
       <script>
@@ -305,27 +324,4 @@ async def message_answer(
     last_user_message = user_messages[-1]["content"]
     ai_reply = await get_assistant_reply_thread(conv["thread_id"], last_user_message)
     
-    if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
-        conv["messages"][-1]["content"] = ai_reply
-    else:
-        conv["messages"].append({"role": "assistant", "content": ai_reply})
-    
-    final_ai_html = f"""
-    <div class="chat-message assistant-message flex mb-4 animate-fadeIn" id="assistant-block-{placeholder_id}">
-        <div class="avatar text-3xl mr-3">{ai_icon}</div>
-        <div class="bubble bg-slate-100 border-l-4 border-slate-400 p-3 rounded-lg shadow-sm">
-            {convert_newlines_to_br(ai_reply)}
-        </div>
-    </div>
-    """
-    return HTMLResponse(content=final_ai_html)
-
-@app.get("/reset")
-async def reset_conversation(request: Request):
-    session_id = request.session.get("session_id")
-    if session_id and session_id in conversation_store:
-        del conversation_store[session_id]
-    return RedirectResponse(url="/", status_code=302)
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    if conv["messages"] and conv["messages"][-1]
