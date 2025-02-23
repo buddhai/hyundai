@@ -32,7 +32,7 @@ openai.api_key = OPENAI_API_KEY
 # 아이콘 및 페르소나 설정
 ai_icon = "🪷"
 user_icon = "🧑🏻‍💻"
-ai_persona = "스님 AI"
+ai_persona = "현대불교신문 AI"
 
 # FastAPI 앱 생성 및 세션 미들웨어 추가
 app = FastAPI()
@@ -59,7 +59,7 @@ def init_conversation(session_id: str):
     thread_id = create_thread()
     initial_message = (
         "모든 답은 당신 안에 있습니다. "
-        "저는 그 여정을 함께하는 스님 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
+        "저는 그 여정을 함께하는 현대불교신문 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
     )
     conversation_store[session_id] = {
         "thread_id": thread_id,
