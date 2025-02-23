@@ -28,12 +28,11 @@ openai.api_key = OPENAI_API_KEY
 # 아이콘 및 페르소나 설정
 ai_icon = "🪷"
 user_icon = "🧑🏻‍💻"
-ai_persona = "스님 AI 챗봇"
+ai_persona = "스님 AI 챗봇"  # 내부적으로만 사용 (헤더에는 표시하지 않음)
 
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 
-# 세션별 대화를 저장할 전역 딕셔너리
 conversation_store = {}
 
 def remove_citation_markers(text: str) -> str:
@@ -64,6 +63,9 @@ def get_conversation(session_id: str):
     return conversation_store[session_id]
 
 async def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
+    """
+    OpenAI Threads API를 비동기로 호출하여 답변 생성.
+    """
     try:
         await asyncio.to_thread(
             openai.beta.threads.messages.create,
@@ -96,10 +98,18 @@ async def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
         return "오류가 발생했습니다. 다시 시도해 주세요."
 
 def convert_newlines_to_br(text: str) -> str:
+    # HTML 이스케이프 + 줄바꿈 -> <br>
     escaped = html.escape(text)
     return escaped.replace('\n', '<br>')
 
 def render_chat_interface(conversation) -> str:
+    """
+    - 배경: 전체 화면 (body)
+    - 컨테이너(.chat-container): 반투명 박스
+    - 헤더: 로고만 표시 (제목 제거)
+    - 말풍선: bg-slate-100 / bg-white
+    - 버튼: 파란색 계열
+    """
     messages_html = ""
     for msg in conversation["messages"]:
         rendered_content = convert_newlines_to_br(msg["content"])
@@ -128,7 +138,7 @@ def render_chat_interface(conversation) -> str:
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>{ai_persona}</title>
+      <title>스님 AI</title>
       <!-- HTMX -->
       <script src="https://unpkg.com/htmx.org@1.7.0"></script>
       <!-- Tailwind CSS -->
@@ -147,7 +157,7 @@ def render_chat_interface(conversation) -> str:
         }}
         @keyframes fadeIn {{
           0% {{ opacity: 0; transform: translateY(10px); }}
-          100% {{ opacity: 1; transform: translateY(0); opacity: 1; }}
+          100% {{ opacity: 1; transform: translateY(0); }}
         }}
         .animate-fadeIn {{
           animation: fadeIn 0.4s ease-in-out forwards;
@@ -157,13 +167,13 @@ def render_chat_interface(conversation) -> str:
           position: relative;
           width: 100%;
           max-width: 800px;
-          height: 90vh; /* 높이를 90% 정도로 잡음 (원하는대로 조절 가능) */
+          height: 90vh; /* 높이 90% */
           margin: auto;
           background-color: rgba(255, 255, 255, 0.8); /* 반투명 화이트 */
           backdrop-filter: blur(4px);
           border-radius: 0.75rem;
           box-shadow: 0 8px 16px rgba(0,0,0,0.15);
-          overflow: hidden; /* 내부 절대 배치 시 스크롤바가 컨테이너를 벗어나지 않도록 */
+          overflow: hidden;
         }}
         /* 헤더, 메시지, 입력창은 chat-container 내부에서 절대 배치 */
         #chat-header {{
@@ -203,10 +213,15 @@ def render_chat_interface(conversation) -> str:
     <body class="h-full flex items-center justify-center">
       <!-- 반투명 화이트 박스 컨테이너 -->
       <div class="chat-container">
-        <!-- 헤더 -->
+        <!-- 헤더 (제목 제거, 로고만) -->
         <div id="chat-header">
           <div class="flex items-center">
-            <span class="text-xl font-bold text-[#3F3A36]">{ai_persona}</span>
+            <!-- 로고 -->
+            <img 
+              src="https://raw.githubusercontent.com/buddhai/hyundai/master/%ED%98%84%EB%8C%80%EB%B6%88%EA%B5%90%20%EB%A1%9C%EA%B3%A0.png" 
+              alt="현대불교 로고" 
+              class="h-10 mr-2"
+            />
           </div>
           <form action="/reset" method="get" class="flex justify-end">
             <button class="bg-blue-700 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg border border-blue-900 shadow-lg hover:shadow-xl transition-all duration-300">
