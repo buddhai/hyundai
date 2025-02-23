@@ -108,7 +108,7 @@ def render_chat_interface(conversation) -> str:
     - 컨테이너(.chat-container): 반투명 박스
     - 헤더: 로고만 표시 (제목 제거)
     - 말풍선: bg-slate-100 / bg-white
-    - 버튼: 파란색 계열
+    - 버튼: 파란색 계열 (모바일에서 reset 버튼 크기를 줄임)
     """
     messages_html = ""
     for msg in conversation["messages"]:
@@ -224,7 +224,8 @@ def render_chat_interface(conversation) -> str:
             />
           </div>
           <form action="/reset" method="get" class="flex justify-end">
-            <button class="bg-blue-700 hover:bg-blue-600 text-white font-bold py-2 px-4 rounded-lg border border-blue-900 shadow-lg hover:shadow-xl transition-all duration-300">
+            <!-- 모바일에서는 버튼 크기를 줄임: 기본 py-1, px-2, text-sm, sm 이상에서 py-2, px-4, text-base -->
+            <button class="bg-blue-700 hover:bg-blue-600 text-white font-bold py-1 px-2 text-sm sm:py-2 sm:px-4 sm:text-base rounded-lg border border-blue-900 shadow-lg hover:shadow-xl transition-all duration-300">
               대화 초기화
             </button>
           </form>
