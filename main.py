@@ -5,10 +5,14 @@ import logging
 import asyncio
 import openai
 import uvicorn
+
 from fastapi import FastAPI, Request, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
+
+# HTML 이스케이프와 줄바꿈 처리용
+import html
 
 load_dotenv()
 
@@ -106,22 +110,34 @@ async def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
         logger.error(f"Error in get_assistant_reply_thread: {e}")
         return "오류가 발생했습니다. 다시 시도해 주세요."
 
+def convert_newlines_to_br(text: str) -> str:
+    """
+    1) HTML 이스케이프
+    2) \n -> <br> 치환
+    """
+    escaped = html.escape(text)
+    return escaped.replace('\n', '<br>')
+
 def render_chat_interface(conversation) -> str:
     """
     HTMX + Tailwind CSS 기반 채팅 UI (레이어 분리)
-      - 상단 헤더
-      - 채팅 메시지 영역 (스크롤 가능, 헤더와 입력창 사이)
-      - 입력창은 항상 하단에 고정
-      - 새로운 메시지가 추가되면 자동 스크롤하여 최신 메시지가 보이도록 처리
+    - 마크다운 없이 줄바꿈만 처리
+    - 상단 헤더
+    - 채팅 메시지 영역 (스크롤 가능, 헤더와 입력창 사이)
+    - 입력창은 항상 하단에 고정
+    - 새로운 메시지가 추가되면 자동 스크롤
     """
     messages_html = ""
     for msg in conversation["messages"]:
+        # 줄바꿈 -> <br> 변환
+        rendered_content = convert_newlines_to_br(msg["content"])
+
         if msg["role"] == "assistant":
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 opacity-0 animate-fadeIn">
                 <div class="avatar text-3xl mr-3">{ai_icon}</div>
                 <div class="bubble bg-[#E3D5C9] border-l-4 border-[#B8A595] p-3 rounded-lg shadow-sm">
-                    {msg['content']}
+                    {rendered_content}
                 </div>
             </div>
             """
@@ -129,11 +145,13 @@ def render_chat_interface(conversation) -> str:
             messages_html += f"""
             <div class="chat-message user-message flex justify-end mb-4 opacity-0 animate-fadeIn">
                 <div class="bubble bg-[#F6F2EB] border-l-4 border-[#B8A595] p-3 rounded-lg shadow-sm mr-3">
-                    {msg['content']}
+                    {rendered_content}
                 </div>
                 <div class="avatar text-3xl">{user_icon}</div>
             </div>
             """
+
+    # HTML 전체 구조
     return f"""
     <!DOCTYPE html>
     <html lang="ko">
@@ -272,7 +290,7 @@ async def message_init(
         user_message_html = f"""
         <div class="chat-message user-message flex justify-end mb-4 opacity-0 animate-fadeIn">
             <div class="bubble bg-[#F6F2EB] border-l-4 border-[#B8A595] p-3 rounded-lg shadow-sm mr-3">
-                {message}
+                {convert_newlines_to_br(message)}
             </div>
             <div class="avatar text-3xl">{user_icon}</div>
         </div>
@@ -324,7 +342,7 @@ async def message_answer(
     <div class="chat-message assistant-message flex mb-4 opacity-0 animate-fadeIn" id="assistant-block-{placeholder_id}">
         <div class="avatar text-3xl mr-3">{ai_icon}</div>
         <div class="bubble bg-[#E3D5C9] border-l-4 border-[#B8A595] p-3 rounded-lg shadow-sm">
-            {ai_reply}
+            {convert_newlines_to_br(ai_reply)}
         </div>
     </div>
     """
