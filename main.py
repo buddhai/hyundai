@@ -324,4 +324,27 @@ async def message_answer(
     last_user_message = user_messages[-1]["content"]
     ai_reply = await get_assistant_reply_thread(conv["thread_id"], last_user_message)
     
-    if conv["messages"] and conv["messages"][-1]
+    if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
+        conv["messages"][-1]["content"] = ai_reply
+    else:
+        conv["messages"].append({"role": "assistant", "content": ai_reply})
+    
+    final_ai_html = f"""
+    <div class="chat-message assistant-message flex mb-4 animate-fadeIn" id="assistant-block-{placeholder_id}">
+        <div class="avatar text-3xl mr-3">{ai_icon}</div>
+        <div class="bubble bg-slate-100 border-l-4 border-slate-400 p-3 rounded-lg shadow-sm">
+            {convert_newlines_to_br(ai_reply)}
+        </div>
+    </div>
+    """
+    return HTMLResponse(content=final_ai_html)
+
+@app.get("/reset")
+async def reset_conversation(request: Request):
+    session_id = request.session.get("session_id")
+    if session_id and session_id in conversation_store:
+        del conversation_store[session_id]
+    return RedirectResponse(url="/", status_code=302)
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
