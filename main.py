@@ -28,24 +28,19 @@ if not OPENAI_API_KEY:
 openai.api_key = OPENAI_API_KEY
 
 # 아이콘 및 페르소나 설정
-# 로고는 헤더에 추가되므로 기존 연꽃 아이콘은 유지하거나 생략 가능
 ai_icon = "🪷"
 user_icon = "🧑🏻‍💻"
 ai_persona = "스님 AI 챗봇"
 
-# FastAPI 앱 생성 및 세션 미들웨어 추가
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 
-# 세션별 대화를 저장할 전역 딕셔너리
 conversation_store = {}
 
 def remove_citation_markers(text: str) -> str:
-    """인용 마커 제거 (예: OpenAI Threads API 결과)"""
     return re.sub(r'【\d+:\d+†source】', '', text)
 
 def create_thread():
-    """새 스레드 생성 (OpenAI beta Threads API 사용)"""
     try:
         thread = openai.beta.threads.create()
         return thread.id
@@ -54,7 +49,6 @@ def create_thread():
         return None
 
 def init_conversation(session_id: str):
-    """세션별 대화 초기화"""
     thread_id = create_thread()
     initial_message = (
         "모든 답은 당신 안에 있습니다. "
@@ -66,18 +60,12 @@ def init_conversation(session_id: str):
     }
 
 def get_conversation(session_id: str):
-    """세션에 따른 대화 가져오기 (없으면 초기화)"""
     if session_id not in conversation_store:
         init_conversation(session_id)
     return conversation_store[session_id]
 
 async def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
-    """
-    OpenAI Threads API를 비동기로 호출하여 답변 생성.
-    동기 API 호출은 asyncio.to_thread로 감싸 이벤트 루프의 블로킹을 최소화합니다.
-    """
     try:
-        # 사용자 메시지 전송
         await asyncio.to_thread(
             openai.beta.threads.messages.create,
             thread_id=thread_id,
@@ -89,7 +77,6 @@ async def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
             run_params["tools"] = [{"type": "file_search"}]
         run = await asyncio.to_thread(openai.beta.threads.runs.create, **run_params)
         
-        # 응답 완료될 때까지 폴링
         while run.status not in ["completed", "failed"]:
             run = await asyncio.to_thread(
                 openai.beta.threads.runs.retrieve,
@@ -110,24 +97,13 @@ async def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
         return "오류가 발생했습니다. 다시 시도해 주세요."
 
 def convert_newlines_to_br(text: str) -> str:
-    """
-    1) HTML 이스케이프
-    2) \n -> <br> 치환
-    """
     escaped = html.escape(text)
     return escaped.replace('\n', '<br>')
 
 def render_chat_interface(conversation) -> str:
-    """
-    HTMX + Tailwind CSS 기반 채팅 UI (레이어 분리, 줄바꿈만 처리)
-    - 상단 헤더: 로고와 제목을 좌측에 배치하여 PC와 모바일에서 모두 자연스럽게 표시
-    - 채팅 메시지 영역: 헤더와 입력창 사이에 스크롤 가능 영역
-    - 입력창: 항상 하단에 고정, 새로운 메시지 도착 시 자동 스크롤
-    """
     messages_html = ""
     for msg in conversation["messages"]:
         rendered_content = convert_newlines_to_br(msg["content"])
-
         if msg["role"] == "assistant":
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 opacity-0 animate-fadeIn">
@@ -178,17 +154,15 @@ def render_chat_interface(conversation) -> str:
         .animate-fadeIn {{
           animation: fadeIn 0.4s ease-in-out forwards;
         }}
-        /* 채팅 메시지 영역: 헤더와 입력창 사이에 위치 */
         #chat-messages {{
           position: absolute;
-          top: 60px; /* 헤더 높이 (조절 가능) */
-          bottom: 70px; /* 입력창 높이 + 여백 */
+          top: 60px;
+          bottom: 70px;
           left: 0;
           right: 0;
           overflow-y: auto;
           padding: 1rem;
         }}
-        /* 입력창 컨테이너: 항상 하단에 고정 */
         #chat-input {{
           position: fixed;
           bottom: 0;
@@ -201,11 +175,10 @@ def render_chat_interface(conversation) -> str:
       </style>
     </head>
     <body>
-      <!-- 상단 헤더: 로고와 제목을 좌측에 배치 -->
-      <div class="flex-shrink-0 w-full py-2 px-4 flex justify-between items-center bg-white bg-opacity-70">
+      <!-- 상단 헤더: 로고 + 제목 + 초기화 버튼 -->
+      <div class="flex items-center justify-between w-full py-2 px-4 bg-white bg-opacity-70">
         <div class="flex items-center">
-          <!-- 로고 이미지 (경로 수정 필요) -->
-          <img src="/static/logo.png" alt="Logo" class="h-10 mr-2">
+          <img src="/static/logo.png" alt="Logo" class="h-10 mr-2" />
           <span class="text-xl font-bold text-[#3F3A36]">{ai_persona}</span>
         </div>
         <form action="/reset" method="get" class="flex justify-end">
@@ -214,12 +187,12 @@ def render_chat_interface(conversation) -> str:
           </button>
         </form>
       </div>
-      
+
       <!-- 채팅 메시지 영역 -->
       <div id="chat-messages">
         {messages_html}
       </div>
-      
+
       <!-- 입력창 (항상 하단 고정) -->
       <div id="chat-input">
         <form id="chat-form"
@@ -239,7 +212,7 @@ def render_chat_interface(conversation) -> str:
           </button>
         </form>
       </div>
-      
+
       <!-- 자동 스크롤 스크립트 -->
       <script>
         function scrollToBottom() {{
@@ -269,10 +242,6 @@ async def message_init(
     message: str = Form(...),
     phase: str = Query(None)
 ):
-    """
-    phase=init: 사용자 메시지 전송 후 placeholder 추가
-    phase=answer: 실제 AI 답변을 받아 placeholder 교체
-    """
     session_id = request.session.get("session_id", str(uuid.uuid4()))
     request.session["session_id"] = session_id
     conv = get_conversation(session_id)
