@@ -15,43 +15,40 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 환경 변수에서 Perplexity API 키를 불러옴 (Railway 키 관리 사용)
+# 환경 변수 및 API 설정 (Railway의 Shared Variables에 설정)
 PERPLEXITY_API_KEY = os.environ.get("PERPLEXITY_API_KEY")
 if not PERPLEXITY_API_KEY:
     logger.error("PERPLEXITY_API_KEY 환경 변수가 설정되지 않았습니다.")
 
-# Perplexity API 설정
 PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
-MODEL_NAME = "sonar"  # 필요에 따라 "sonar-pro" 등으로 변경 가능
+MODEL_NAME = os.environ.get("MODEL_NAME", "sonar")  # 필요에 따라 "sonar-pro" 등으로 변경 가능
 
-# 아이콘 및 페르소나 설정
+# 아이콘 및 페르소나
 ai_icon = "🪷"
 user_icon = "🧑🏻‍💻"
-ai_persona = "스님 AI 챗봇"  # 내부 사용 (헤더에 표시되지 않음)
 
 app = FastAPI()
-app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
+app.add_middleware(SessionMiddleware, secret_key=os.environ.get("SECRET_KEY", "your-secret-key"))
 
-# 대화 내용을 저장할 간단한 메모리 스토어
+# 대화 저장소 (간단한 메모리 기반)
 conversation_store = {}
 
 def remove_citation_markers(text: str) -> str:
     return re.sub(r'【\d+:\d+†source】', '', text)
 
 def convert_newlines_to_br(text: str) -> str:
-    escaped = html.escape(text)
-    return escaped.replace('\n', '<br>')
+    return html.escape(text).replace('\n', '<br>')
 
 def render_chat_interface(conversation) -> str:
     messages_html = ""
     for msg in conversation["messages"]:
-        rendered_content = convert_newlines_to_br(msg["content"])
+        rendered = convert_newlines_to_br(msg["content"])
         if msg["role"] == "assistant":
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 animate-fadeIn">
                 <div class="avatar text-3xl mr-3">{ai_icon}</div>
                 <div class="bubble bg-slate-100 border-l-4 border-slate-400 p-3 rounded-lg shadow-sm">
-                    {rendered_content}
+                    {rendered}
                 </div>
             </div>
             """
@@ -59,7 +56,7 @@ def render_chat_interface(conversation) -> str:
             messages_html += f"""
             <div class="chat-message user-message flex justify-end mb-4 animate-fadeIn">
                 <div class="bubble bg-white border-l-4 border-gray-400 p-3 rounded-lg shadow-sm mr-3">
-                    {rendered_content}
+                    {rendered}
                 </div>
                 <div class="avatar text-3xl">{user_icon}</div>
             </div>
@@ -101,8 +98,7 @@ def render_chat_interface(conversation) -> str:
         }}
         #chat-header {{
           position: absolute;
-          top: 0;
-          left: 0; right: 0;
+          top: 0; left: 0; right: 0;
           height: 60px;
           background-color: rgba(255, 255, 255, 0.7);
           backdrop-filter: blur(4px);
@@ -113,16 +109,14 @@ def render_chat_interface(conversation) -> str:
         }}
         #chat-messages {{
           position: absolute;
-          top: 60px;
-          bottom: 70px;
+          top: 60px; bottom: 70px;
           left: 0; right: 0;
           overflow-y: auto;
           padding: 1rem;
         }}
         #chat-input {{
           position: absolute;
-          bottom: 0;
-          left: 0; right: 0;
+          bottom: 0; left: 0; right: 0;
           height: 70px;
           background-color: rgba(255, 255, 255, 0.7);
           backdrop-filter: blur(4px);
@@ -155,11 +149,8 @@ def render_chat_interface(conversation) -> str:
                 hx-swap="beforeend"
                 onsubmit="setTimeout(() => this.reset(), 0)"
                 class="flex w-full">
-            <input type="text"
-                   name="message"
-                   placeholder="스님 AI에게 질문하세요"
-                   class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                   required />
+            <input type="text" name="message" placeholder="스님 AI에게 질문하세요"
+                   class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400" required />
             <button type="submit"
                     class="bg-blue-700 hover:bg-blue-600 text-white font-bold p-3 rounded-r-lg border border-blue-900 shadow-lg hover:shadow-xl transition-all duration-300">
               전송
@@ -197,7 +188,8 @@ async def get_chat(request: Request):
 
 async def get_perplexity_reply(messages) -> str:
     """
-    Perplexity API를 호출하여 주어진 대화 기록(messages)에 대한 AI 응답을 생성합니다.
+    Perplexity API를 호출하여 대화 기록(messages)에 대한 AI 응답을 생성합니다.
+    불필요한 값(None)은 payload에서 제외합니다.
     """
     payload = {
         "model": MODEL_NAME,
@@ -205,15 +197,10 @@ async def get_perplexity_reply(messages) -> str:
         "max_tokens": 200,
         "temperature": 0.2,
         "top_p": 0.9,
-        "search_domain_filter": None,
-        "return_images": False,
-        "return_related_questions": False,
-        "search_recency_filter": None,
         "top_k": 0,
         "stream": False,
         "presence_penalty": 0,
         "frequency_penalty": 1,
-        "response_format": None
     }
     headers = {
         "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
@@ -239,11 +226,11 @@ async def message_init(request: Request, message: str = Form(...), phase: str = 
 
     # 사용자 메시지 저장
     conv["messages"].append({"role": "user", "content": message})
-    # AI 응답 자리 표시 (placeholder)
+    # 자리 표시 응답 추가
     placeholder_id = str(uuid.uuid4())
     conv["messages"].append({"role": "assistant", "content": "답변 생성 중..."})
     
-    user_message_html = f"""
+    user_msg_html = f"""
     <div class="chat-message user-message flex justify-end mb-4 animate-fadeIn">
         <div class="bubble bg-white border-l-4 border-gray-400 p-3 rounded-lg shadow-sm mr-3">
             {convert_newlines_to_br(message)}
@@ -264,7 +251,7 @@ async def message_init(request: Request, message: str = Form(...), phase: str = 
         </div>
     </div>
     """
-    return HTMLResponse(content=user_message_html + placeholder_html)
+    return HTMLResponse(content=user_msg_html + placeholder_html)
 
 @app.get("/message", response_class=HTMLResponse)
 async def message_answer(request: Request, placeholder_id: str = Query(None), phase: str = Query(None)):
@@ -275,15 +262,15 @@ async def message_answer(request: Request, placeholder_id: str = Query(None), ph
         return HTMLResponse("Session not found", status_code=400)
     conv = conversation_store[session_id]
     
-    # 전체 대화 기록을 바탕으로 Perplexity API 호출
+    # Perplexity API를 호출하여 전체 대화 기록 기반 응답 생성
     ai_reply = await get_perplexity_reply(conv["messages"])
-    # 마지막 AI placeholder 메시지를 실제 응답으로 대체
+    # 마지막 AI 메시지를 실제 응답으로 업데이트
     if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
         conv["messages"][-1]["content"] = ai_reply
     else:
         conv["messages"].append({"role": "assistant", "content": ai_reply})
     
-    final_ai_html = f"""
+    final_html = f"""
     <div class="chat-message assistant-message flex mb-4 animate-fadeIn" id="assistant-block-{placeholder_id}">
         <div class="avatar text-3xl mr-3">{ai_icon}</div>
         <div class="bubble bg-slate-100 border-l-4 border-slate-400 p-3 rounded-lg shadow-sm">
@@ -291,12 +278,12 @@ async def message_answer(request: Request, placeholder_id: str = Query(None), ph
         </div>
     </div>
     """
-    return HTMLResponse(content=final_ai_html)
+    return HTMLResponse(content=final_html)
 
 @app.get("/reset")
 async def reset_conversation(request: Request):
     session_id = request.session.get("session_id")
-    if session_id and session_id in conversation_store:
+    if session_id in conversation_store:
         del conversation_store[session_id]
     return RedirectResponse(url="/", status_code=302)
 
