@@ -16,13 +16,15 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 환경 변수 (Railway Shared Variables 활용)
+# 환경 변수 설정
 PERPLEXITY_API_KEY = os.environ.get("PERPLEXITY_API_KEY")
 if not PERPLEXITY_API_KEY:
     logger.error("PERPLEXITY_API_KEY 환경 변수가 설정되지 않았습니다.")
 
 PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
 MODEL_NAME = os.environ.get("MODEL_NAME", "sonar")
+# 안전한 max_tokens 값 설정 (환경변수 MAX_TOKENS가 없으면 기본 200 사용)
+MAX_TOKENS = int(os.environ.get("MAX_TOKENS", "200"))
 
 # FastAPI 설정
 app = FastAPI()
@@ -167,7 +169,7 @@ def render_chat_interface(conversation) -> str:
 
 @app.get("/", response_class=HTMLResponse)
 async def get_chat(request: Request):
-    # 초기 대화는 시스템 메시지로 설정 (API의 alternating 규칙을 만족시키기 위해)
+    # 초기 대화는 시스템 메시지로 설정 (API 규칙을 만족시키기 위해)
     session_id = request.session.get("session_id", str(uuid.uuid4()))
     request.session["session_id"] = session_id
     if session_id not in conversation_store:
@@ -198,6 +200,7 @@ async def get_perplexity_reply(messages) -> str:
     payload = {
         "model": MODEL_NAME,
         "messages": messages_for_api,
+        "max_tokens": MAX_TOKENS,  # 반드시 명시적으로 설정
         "temperature": 0.2,
         "top_p": 0.9,
         "top_k": 0,
