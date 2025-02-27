@@ -198,7 +198,7 @@ async def get_perplexity_reply(messages) -> str:
     payload = {
         "model": MODEL_NAME,
         "messages": messages_for_api,
-        "max_tokens": 1000,  # 원하는 값으로 변경
+        "max_tokens": 1000,
         "temperature": 0.2,
         "top_p": 0.9,
         "top_k": 0,
