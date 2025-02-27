@@ -167,7 +167,7 @@ def render_chat_interface(conversation) -> str:
 
 @app.get("/", response_class=HTMLResponse)
 async def get_chat(request: Request):
-    # 초기 대화는 시스템 메시지로 설정하여 alternating 규칙에 맞춥니다.
+    # 초기 대화는 시스템 메시지로 설정 (API의 alternating 규칙을 만족시키기 위해)
     session_id = request.session.get("session_id", str(uuid.uuid4()))
     request.session["session_id"] = session_id
     if session_id not in conversation_store:
@@ -181,8 +181,8 @@ async def get_chat(request: Request):
 async def get_perplexity_reply(messages) -> str:
     """
     Perplexity API를 호출하여 대화 기록(messages)에 대한 AI 응답을 생성합니다.
-    placeholder 메시지("답변 생성 중...")는 제거하고, 만약 대화가 user로 끝난다면
-    빈 assistant 메시지를 추가하여 alternating 규칙을 만족시킵니다.
+    placeholder 메시지("답변 생성 중...")는 제거하고,
+    대화 컨텍스트의 마지막 메시지가 user여야 합니다.
     """
     # placeholder 메시지 제거
     if messages and messages[-1]["role"] == "assistant" and messages[-1]["content"] == "답변 생성 중...":
@@ -190,11 +190,11 @@ async def get_perplexity_reply(messages) -> str:
     else:
         messages_for_api = messages.copy()
 
-    # 시스템 메시지를 제외한 나머지 메시지들이 번갈아 나타나도록 보정합니다.
-    non_system = [m for m in messages_for_api if m["role"] != "system"]
-    if non_system and non_system[-1]["role"] == "user":
-        messages_for_api.append({"role": "assistant", "content": ""})
-        
+    # 마지막 메시지가 user인지 확인 (API 규칙)
+    if not messages_for_api or messages_for_api[-1]["role"] != "user":
+        logger.error("대화 컨텍스트의 마지막 메시지가 user가 아닙니다: %s", messages_for_api)
+        return "응답 생성에 실패했습니다. 다시 시도해 주세요."
+
     payload = {
         "model": MODEL_NAME,
         "messages": messages_for_api,
