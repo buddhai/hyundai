@@ -198,7 +198,7 @@ async def get_perplexity_reply(messages) -> str:
     payload = {
         "model": MODEL_NAME,
         "messages": messages_for_api,
-        "max_tokens": 600,
+        "max_tokens": 200,
         "temperature": 0.2,
         "top_p": 0.9,
         "top_k": 0,
@@ -206,7 +206,6 @@ async def get_perplexity_reply(messages) -> str:
         "presence_penalty": 0,
         "frequency_penalty": 1,
     }
-
     headers = {
         "Authorization": f"Bearer {PERPLEXITY_API_KEY}",
         "Content-Type": "application/json"
