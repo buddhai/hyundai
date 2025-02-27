@@ -23,7 +23,7 @@ if not PERPLEXITY_API_KEY:
 
 PERPLEXITY_API_URL = "https://api.perplexity.ai/chat/completions"
 MODEL_NAME = os.environ.get("MODEL_NAME", "sonar")
-# 안전한 max_tokens 값 설정 (환경변수 MAX_TOKENS가 없으면 기본 200 사용)
+# max_tokens를 명시적으로 설정 - 환경 변수 MAX_TOKENS가 없으면 기본값 200 사용
 MAX_TOKENS = int(os.environ.get("MAX_TOKENS", "200"))
 
 # FastAPI 설정
@@ -200,7 +200,7 @@ async def get_perplexity_reply(messages) -> str:
     payload = {
         "model": MODEL_NAME,
         "messages": messages_for_api,
-        "max_tokens": MAX_TOKENS,  # 반드시 명시적으로 설정
+        "max_tokens": MAX_TOKENS,  # 명시적으로 max_tokens 지정
         "temperature": 0.2,
         "top_p": 0.9,
         "top_k": 0,
