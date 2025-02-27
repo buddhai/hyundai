@@ -16,7 +16,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 환경 변수에서 API 키 로드 (Railway Shared Variables 활용)
+# 환경 변수 (Railway Shared Variables 활용)
 PERPLEXITY_API_KEY = os.environ.get("PERPLEXITY_API_KEY")
 if not PERPLEXITY_API_KEY:
     logger.error("PERPLEXITY_API_KEY 환경 변수가 설정되지 않았습니다.")
@@ -28,7 +28,7 @@ MODEL_NAME = os.environ.get("MODEL_NAME", "sonar")
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key=os.environ.get("SECRET_KEY", "your-secret-key"))
 
-# 대화 저장소
+# 대화 저장소 (메모리 기반)
 conversation_store = {}
 
 # 유틸리티 함수
@@ -137,12 +137,12 @@ def render_chat_interface(conversation) -> str:
         '        </button>'
         '      </form>'
         '    </div>'
-        '    <div id="chat-messages">'
-             + messages_html +
-        '    </div>'
+        '    <div id="chat-messages">' + messages_html + '</div>'
         '    <div id="chat-input">'
-        '      <form id="chat-form" hx-post="/message?phase=init" hx-target="#chat-messages" hx-swap="beforeend" onsubmit="setTimeout(() => this.reset(), 0)" class="flex w-full">'
-        '        <input type="text" name="message" placeholder="스님 AI에게 질문하세요" class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400" required />'
+        '      <form id="chat-form" hx-post="/message?phase=init" hx-target="#chat-messages" '
+        '            hx-swap="beforeend" onsubmit="setTimeout(() => this.reset(), 0)" class="flex w-full">'
+        '        <input type="text" name="message" placeholder="스님 AI에게 질문하세요" '
+        '               class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400" required />'
         '        <button type="submit" class="bg-blue-700 hover:bg-blue-600 text-white font-bold p-3 rounded-r-lg border border-blue-900 shadow-lg hover:shadow-xl transition-all duration-300">'
         '          전송'
         '        </button>'
@@ -167,24 +167,34 @@ def render_chat_interface(conversation) -> str:
 
 @app.get("/", response_class=HTMLResponse)
 async def get_chat(request: Request):
+    # 초기 대화는 시스템 메시지로 설정하여 alternating 규칙에 맞춥니다.
     session_id = request.session.get("session_id", str(uuid.uuid4()))
     request.session["session_id"] = session_id
     if session_id not in conversation_store:
         conversation_store[session_id] = {
-            "messages": [{"role": "assistant", "content": "모든 답은 당신 안에 있습니다. 🙏🏻 무엇이 궁금하신가요?"}]
+            "messages": [
+                {"role": "system", "content": "모든 답은 당신 안에 있습니다. 저는 그 여정을 함께하는 스님 AI입니다. 무엇이 궁금하신가요?"}
+            ]
         }
     return HTMLResponse(content=render_chat_interface(conversation_store[session_id]))
 
 async def get_perplexity_reply(messages) -> str:
     """
     Perplexity API를 호출하여 대화 기록(messages)에 대한 AI 응답을 생성합니다.
-    마지막 메시지가 "답변 생성 중..."이면 이를 제거한 후 요청합니다.
+    placeholder 메시지("답변 생성 중...")는 제거하고, 만약 대화가 user로 끝난다면
+    빈 assistant 메시지를 추가하여 alternating 규칙을 만족시킵니다.
     """
+    # placeholder 메시지 제거
     if messages and messages[-1]["role"] == "assistant" and messages[-1]["content"] == "답변 생성 중...":
         messages_for_api = messages[:-1]
     else:
-        messages_for_api = messages
+        messages_for_api = messages.copy()
 
+    # 시스템 메시지를 제외한 나머지 메시지들이 번갈아 나타나도록 보정합니다.
+    non_system = [m for m in messages_for_api if m["role"] != "system"]
+    if non_system and non_system[-1]["role"] == "user":
+        messages_for_api.append({"role": "assistant", "content": ""})
+        
     payload = {
         "model": MODEL_NAME,
         "messages": messages_for_api,
@@ -227,6 +237,7 @@ async def message_init(request: Request, message: str = Form(...), phase: str = 
     # 사용자 메시지 저장
     conv["messages"].append({"role": "user", "content": message})
     placeholder_id = str(uuid.uuid4())
+    # placeholder assistant 메시지 추가 (대화 인터페이스에 즉시 표시)
     conv["messages"].append({"role": "assistant", "content": "답변 생성 중..."})
 
     user_msg_html = (
