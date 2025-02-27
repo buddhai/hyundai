@@ -16,6 +16,9 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+MAX_TOKENS = os.environ.get("MAX_TOKENS", "DEFAULT_NOT_SET")
+logger.info(f"MAX_TOKENS is set to: {MAX_TOKENS}")
+
 # 환경 변수 설정
 PERPLEXITY_API_KEY = os.environ.get("PERPLEXITY_API_KEY")
 if not PERPLEXITY_API_KEY:
