@@ -183,7 +183,7 @@ def render_chat_interface(conversation) -> str:
                 class="flex w-full">
             <input type="text"
                    name="message"
-                   placeholder="현대불교신문 AI에게 질문하세요"
+                   placeholder="메시지"
                    class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
                    required />
             <button type="submit"
