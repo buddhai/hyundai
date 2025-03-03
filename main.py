@@ -29,7 +29,7 @@ client = genai.Client(api_key=GEMINI_API_KEY)
 # 아이콘 및 페르소나 설정
 ai_icon = "🪷"
 user_icon = "🧑🏻‍💻"
-ai_persona = "스님 AI 챗봇"  # 내부적으로만 사용 (헤더에는 표시하지 않음)
+ai_persona = "현대불교신문 AI 챗봇"  # 내부적으로만 사용 (헤더에는 표시하지 않음)
 
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
@@ -221,7 +221,7 @@ def init_conversation(session_id: str):
     )
     initial_message = (
         "모든 답은 당신 안에 있습니다. "
-        "저는 그 여정을 함께하는 스님 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
+        "저는 그 여정을 함께하는 현대불교신문 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
     )
     # Gemini API를 사용하여 채팅 세션 생성 (모델: gemini-2.0-flash)
     chat_session = client.chats.create(model="gemini-2.0-flash")
