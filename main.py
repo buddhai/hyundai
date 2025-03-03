@@ -17,13 +17,13 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# 기존 OPENAI_API_KEY 대신 GEMINI_API_KEY 사용 (Google AI Studio에서 발급)
+# GEMINI_API_KEY 환경 변수 확인
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
 
-# Gemini API 클라이언트 초기화
-from google import genai
+# Gemini API 클라이언트 초기화 (올바른 임포트 사용)
+import google.generativeai as genai
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 # 아이콘 및 페르소나 설정
@@ -41,14 +41,10 @@ def remove_citation_markers(text: str) -> str:
     return re.sub(r'【\d+:\d+†source】', '', text)
 
 def convert_newlines_to_br(text: str) -> str:
-    # HTML 이스케이프 후 줄바꿈을 <br>로 변환
     escaped = html.escape(text)
     return escaped.replace('\n', '<br>')
 
 def render_chat_interface(conversation) -> str:
-    """
-    HTML 채팅 인터페이스 렌더링 함수
-    """
     messages_html = ""
     for msg in conversation["messages"]:
         rendered_content = convert_newlines_to_br(msg["content"])
@@ -77,9 +73,7 @@ def render_chat_interface(conversation) -> str:
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>스님 AI</title>
-      <!-- HTMX -->
       <script src="https://unpkg.com/htmx.org@1.7.0"></script>
-      <!-- Tailwind CSS -->
       <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
       <style>
         html, body {{
@@ -200,9 +194,6 @@ def render_chat_interface(conversation) -> str:
     """
 
 def init_conversation(session_id: str):
-    """
-    Gemini API의 채팅 세션을 생성하여 초기 대화 이력을 저장합니다.
-    """
     initial_message = (
         "모든 답은 당신 안에 있습니다. "
         "저는 그 여정을 함께하는 스님 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
@@ -220,10 +211,7 @@ def get_conversation(session_id: str):
     return conversation_store[session_id]
 
 async def get_assistant_reply(chat_session, prompt: str) -> str:
-    """
-    Gemini API의 ChatSession을 이용하여 응답을 생성합니다.
-    """
-    # blocking call을 비동기적으로 실행 (필요 시)
+    # Gemini API의 채팅 세션을 통해 응답 생성 (비동기 호출)
     response = await asyncio.to_thread(chat_session.send_message, prompt)
     return response.text
 
@@ -295,7 +283,6 @@ async def message_answer(
     chat_session = conv["chat"]
     ai_reply = await get_assistant_reply(chat_session, last_user_message)
     
-    # 최신 응답 업데이트
     if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
         conv["messages"][-1]["content"] = ai_reply
     else:
