@@ -22,7 +22,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
 
-# Gemini API 클라이언트 초기화
+# Gemini API 클라이언트 초기화 (google-genai 라이브러리 사용)
 from google import genai
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -40,6 +40,14 @@ conversation_store = {}
 def remove_citation_markers(text: str) -> str:
     return re.sub(r'【\d+:\d+†source】', '', text)
 
+def remove_markdown_bold(text: str) -> str:
+    """
+    ** 또는 __로 감싸진 굵은 텍스트 마크업 문법을 제거합니다.
+    """
+    text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+    text = re.sub(r'__(.*?)__', r'\1', text)
+    return text
+
 def convert_newlines_to_br(text: str) -> str:
     # HTML 이스케이프 후 줄바꿈을 <br>로 변환
     escaped = html.escape(text)
@@ -47,10 +55,12 @@ def convert_newlines_to_br(text: str) -> str:
 
 def render_chat_interface(conversation) -> str:
     """
-    HTML 채팅 인터페이스 렌더링 함수
+    대화 이력 중 "system" 역할 메시지는 UI에 표시하지 않습니다.
     """
     messages_html = ""
     for msg in conversation["messages"]:
+        if msg["role"] == "system":
+            continue  # 시스템 메시지는 표시하지 않음
         rendered_content = convert_newlines_to_br(msg["content"])
         if msg["role"] == "assistant":
             messages_html += f"""
@@ -201,8 +211,14 @@ def render_chat_interface(conversation) -> str:
 
 def init_conversation(session_id: str):
     """
-    Gemini API를 사용하여 채팅 세션을 생성하고 초기 대화 이력을 저장합니다.
+    Gemini API를 사용하여 채팅 세션을 생성하고, 시스템 프롬프트와 초기 대화 이력을 저장합니다.
     """
+    # 시스템 프롬프트: 한마음선원 현대불교신문의 AI임을 인지시키고, 매우 호의적이고 친절하게 답변하도록 지시
+    system_message = (
+        "시스템 안내: 당신은 한마음선원 현대불교신문의 AI입니다. "
+        "항상 친근하고 예의바르게, 그 신문의 명예와 위상을 높이는 답변을 제공하며, "
+        "사용자의 질문에 대해 상세하고 정확하게, 그리고 매우 호의적으로 응답합니다."
+    )
     initial_message = (
         "모든 답은 당신 안에 있습니다. "
         "저는 그 여정을 함께하는 스님 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
@@ -211,7 +227,10 @@ def init_conversation(session_id: str):
     chat_session = client.chats.create(model="gemini-2.0-flash")
     conversation_store[session_id] = {
         "chat": chat_session,
-        "messages": [{"role": "assistant", "content": initial_message}]
+        "messages": [
+            {"role": "system", "content": system_message},
+            {"role": "assistant", "content": initial_message}
+        ]
     }
 
 def get_conversation(session_id: str):
@@ -221,10 +240,10 @@ def get_conversation(session_id: str):
 
 async def get_assistant_reply(chat_session, prompt: str) -> str:
     """
-    Gemini API의 채팅 세션을 통해 응답을 생성합니다.
+    Gemini API의 채팅 세션을 통해 응답을 생성하고, 마크다운 굵게 표시 문법을 제거합니다.
     """
     response = await asyncio.to_thread(chat_session.send_message, prompt)
-    return response.text
+    return remove_markdown_bold(response.text)
 
 @app.get("/", response_class=HTMLResponse)
 async def get_chat(request: Request):
