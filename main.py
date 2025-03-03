@@ -26,15 +26,9 @@ if not GEMINI_API_KEY:
 from google import genai
 client = genai.Client(api_key=GEMINI_API_KEY)
 
-# 아이콘 및 페르소나 설정
-ai_icon = "🪷"
-user_icon = "🧑🏻‍💻"
-ai_persona = "현대불교신문 AI 챗봇"  # 내부적으로만 사용 (헤더에는 표시하지 않음)
-
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 
-# 간단한 대화 이력 저장소 (실제 운영 시 DB 등으로 대체 권장)
 conversation_store = {}
 
 def remove_citation_markers(text: str) -> str:
@@ -63,21 +57,21 @@ def render_chat_interface(conversation) -> str:
             continue  # 시스템 메시지는 표시하지 않음
         rendered_content = convert_newlines_to_br(msg["content"])
         if msg["role"] == "assistant":
+            # 아이콘을 표시하던 <div> 제거
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 animate-fadeIn">
-                <div class="avatar text-3xl mr-3">{ai_icon}</div>
                 <div class="bubble bg-slate-100 border-l-4 border-slate-400 p-3 rounded-lg shadow-sm">
                     {rendered_content}
                 </div>
             </div>
             """
         else:
+            # 아이콘을 표시하던 <div> 제거
             messages_html += f"""
             <div class="chat-message user-message flex justify-end mb-4 animate-fadeIn">
                 <div class="bubble bg-white border-l-4 border-gray-400 p-3 rounded-lg shadow-sm mr-3">
                     {rendered_content}
                 </div>
-                <div class="avatar text-3xl">{user_icon}</div>
             </div>
             """
     return f"""
@@ -183,7 +177,7 @@ def render_chat_interface(conversation) -> str:
                 class="flex w-full">
             <input type="text"
                    name="message"
-                   placeholder="메시지"
+                   placeholder="스님 AI에게 질문하세요"
                    class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
                    required />
             <button type="submit"
@@ -213,7 +207,6 @@ def init_conversation(session_id: str):
     """
     Gemini API를 사용하여 채팅 세션을 생성하고, 시스템 프롬프트와 초기 대화 이력을 저장합니다.
     """
-    # 시스템 프롬프트: 한마음선원 현대불교신문의 AI임을 인지시키고, 매우 호의적이고 친절하게 답변하도록 지시
     system_message = (
         "시스템 안내: 당신은 한마음선원 현대불교신문의 AI입니다. "
         "항상 친근하고 예의바르게, 그 신문의 명예와 위상을 높이는 답변을 제공하며, "
@@ -221,7 +214,7 @@ def init_conversation(session_id: str):
     )
     initial_message = (
         "모든 답은 당신 안에 있습니다. "
-        "저는 그 여정을 함께하는 현대불교신문 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
+        "저는 그 여정을 함께하는 스님 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
     )
     # Gemini API를 사용하여 채팅 세션 생성 (모델: gemini-2.0-flash)
     chat_session = client.chats.create(model="gemini-2.0-flash")
@@ -271,12 +264,10 @@ async def message_init(
             <div class="bubble bg-white border-l-4 border-gray-400 p-3 rounded-lg shadow-sm mr-3">
                 {convert_newlines_to_br(message)}
             </div>
-            <div class="avatar text-3xl">{user_icon}</div>
         </div>
         """
         placeholder_html = f"""
         <div class="chat-message assistant-message flex mb-4 animate-fadeIn" id="assistant-block-{placeholder_id}">
-            <div class="avatar text-3xl mr-3">{ai_icon}</div>
             <div class="bubble bg-slate-100 border-l-4 border-slate-400 p-3 rounded-lg shadow-sm"
                  id="ai-msg-{placeholder_id}"
                  hx-get="/message?phase=answer&placeholder_id={placeholder_id}"
@@ -320,7 +311,6 @@ async def message_answer(
     
     final_ai_html = f"""
     <div class="chat-message assistant-message flex mb-4 animate-fadeIn" id="assistant-block-{placeholder_id}">
-        <div class="avatar text-3xl mr-3">{ai_icon}</div>
         <div class="bubble bg-slate-100 border-l-4 border-slate-400 p-3 rounded-lg shadow-sm">
             {convert_newlines_to_br(ai_reply)}
         </div>
