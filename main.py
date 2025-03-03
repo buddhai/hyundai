@@ -3,27 +3,28 @@ import re
 import uuid
 import logging
 import asyncio
-import openai
 import uvicorn
+import html
 
 from fastapi import FastAPI, Request, Form, Query
 from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
-import html
 
+# 환경 변수 로드
 load_dotenv()
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-ASSISTANT_ID = os.environ.get("ASSISTANT_ID", "default_assistant_id")
-VECTOR_STORE_ID = os.environ.get("VECTOR_STORE_ID", "")
+# 기존 OPENAI_API_KEY 대신 GEMINI_API_KEY 사용 (Google AI Studio에서 발급)
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+if not GEMINI_API_KEY:
+    logger.error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
 
-if not OPENAI_API_KEY:
-    logger.error("OPENAI_API_KEY 환경 변수가 설정되지 않았습니다.")
-openai.api_key = OPENAI_API_KEY
+# Gemini API 클라이언트 초기화
+from google import genai
+client = genai.Client(api_key=GEMINI_API_KEY)
 
 # 아이콘 및 페르소나 설정
 ai_icon = "🪷"
@@ -33,82 +34,20 @@ ai_persona = "스님 AI 챗봇"  # 내부적으로만 사용 (헤더에는 표�
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 
+# 간단한 대화 이력 저장소 (실제 운영 시 DB 등으로 대체 권장)
 conversation_store = {}
 
 def remove_citation_markers(text: str) -> str:
     return re.sub(r'【\d+:\d+†source】', '', text)
 
-def create_thread():
-    try:
-        thread = openai.beta.threads.create()
-        return thread.id
-    except Exception as e:
-        logger.error(f"Thread creation failed: {e}")
-        return None
-
-def init_conversation(session_id: str):
-    thread_id = create_thread()
-    initial_message = (
-        "모든 답은 당신 안에 있습니다. "
-        "저는 그 여정을 함께하는 스님 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
-    )
-    conversation_store[session_id] = {
-        "thread_id": thread_id,
-        "messages": [{"role": "assistant", "content": initial_message}]
-    }
-
-def get_conversation(session_id: str):
-    if session_id not in conversation_store:
-        init_conversation(session_id)
-    return conversation_store[session_id]
-
-async def get_assistant_reply_thread(thread_id: str, prompt: str) -> str:
-    """
-    OpenAI Threads API를 비동기로 호출하여 답변 생성.
-    """
-    try:
-        await asyncio.to_thread(
-            openai.beta.threads.messages.create,
-            thread_id=thread_id,
-            role="user",
-            content=f"사용자가 {ai_persona}과 대화하고 있습니다: {prompt}"
-        )
-        run_params = {"thread_id": thread_id, "assistant_id": ASSISTANT_ID}
-        if VECTOR_STORE_ID:
-            run_params["tools"] = [{"type": "file_search"}]
-        run = await asyncio.to_thread(openai.beta.threads.runs.create, **run_params)
-        
-        while run.status not in ["completed", "failed"]:
-            run = await asyncio.to_thread(
-                openai.beta.threads.runs.retrieve,
-                thread_id=thread_id,
-                run_id=run.id
-            )
-            if run.status == "completed":
-                messages = await asyncio.to_thread(
-                    openai.beta.threads.messages.list,
-                    thread_id=thread_id
-                )
-                return remove_citation_markers(messages.data[0].content[0].text.value)
-            elif run.status == "failed":
-                return "응답 생성에 실패했습니다. 다시 시도해 주세요."
-            await asyncio.sleep(0.5)
-    except Exception as e:
-        logger.error(f"Error in get_assistant_reply_thread: {e}")
-        return "오류가 발생했습니다. 다시 시도해 주세요."
-
 def convert_newlines_to_br(text: str) -> str:
-    # HTML 이스케이프 + 줄바꿈 -> <br>
+    # HTML 이스케이프 후 줄바꿈을 <br>로 변환
     escaped = html.escape(text)
     return escaped.replace('\n', '<br>')
 
 def render_chat_interface(conversation) -> str:
     """
-    - 배경: 전체 화면 (body)
-    - 컨테이너(.chat-container): 반투명 박스
-    - 헤더: 로고만 표시 (제목 제거)
-    - 말풍선: bg-slate-100 / bg-white
-    - 버튼: 파란색 계열 (모바일에서 reset 버튼 크기를 줄임)
+    HTML 채팅 인터페이스 렌더링 함수
     """
     messages_html = ""
     for msg in conversation["messages"]:
@@ -131,7 +70,6 @@ def render_chat_interface(conversation) -> str:
                 <div class="avatar text-3xl">{user_icon}</div>
             </div>
             """
-
     return f"""
     <!DOCTYPE html>
     <html lang="ko">
@@ -149,7 +87,6 @@ def render_chat_interface(conversation) -> str:
         }}
         body {{
           font-family: 'Noto Sans KR', sans-serif;
-          /* 배경 이미지 */
           background: url('https://picsum.photos/id/1062/1200/800') no-repeat center center;
           background-size: cover;
           background-color: rgba(246, 242, 235, 0.8);
@@ -162,20 +99,18 @@ def render_chat_interface(conversation) -> str:
         .animate-fadeIn {{
           animation: fadeIn 0.4s ease-in-out forwards;
         }}
-        /* 전체 컨테이너: 반투명 화이트 박스 */
         .chat-container {{
           position: relative;
           width: 100%;
           max-width: 800px;
-          height: 90vh; /* 높이 90% */
+          height: 90vh;
           margin: auto;
-          background-color: rgba(255, 255, 255, 0.8); /* 반투명 화이트 */
+          background-color: rgba(255, 255, 255, 0.8);
           backdrop-filter: blur(4px);
           border-radius: 0.75rem;
           box-shadow: 0 8px 16px rgba(0,0,0,0.15);
           overflow: hidden;
         }}
-        /* 헤더, 메시지, 입력창은 chat-container 내부에서 절대 배치 */
         #chat-header {{
           position: absolute;
           top: 0;
@@ -211,12 +146,9 @@ def render_chat_interface(conversation) -> str:
       </style>
     </head>
     <body class="h-full flex items-center justify-center">
-      <!-- 반투명 화이트 박스 컨테이너 -->
       <div class="chat-container">
-        <!-- 헤더 (제목 제거, 로고만) -->
         <div id="chat-header">
           <div class="flex items-center">
-            <!-- 로고 -->
             <img 
               src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo2.PNG" 
               alt="현대불교 로고" 
@@ -224,19 +156,14 @@ def render_chat_interface(conversation) -> str:
             />
           </div>
           <form action="/reset" method="get" class="flex justify-end">
-            <!-- 모바일에서는 버튼 크기를 줄임: 기본 py-1, px-2, text-sm, sm 이상에서 py-2, px-4, text-base -->
             <button class="bg-blue-700 hover:bg-blue-600 text-white font-bold py-1 px-2 text-sm sm:py-2 sm:px-4 sm:text-base rounded-lg border border-blue-900 shadow-lg hover:shadow-xl transition-all duration-300">
               대화 초기화
             </button>
           </form>
         </div>
-
-        <!-- 메시지 표시 영역 -->
         <div id="chat-messages">
           {messages_html}
         </div>
-
-        <!-- 입력창 -->
         <div id="chat-input">
           <form id="chat-form"
                 hx-post="/message?phase=init"
@@ -256,7 +183,6 @@ def render_chat_interface(conversation) -> str:
           </form>
         </div>
       </div>
-
       <script>
         function scrollToBottom() {{
           var chatMessages = document.getElementById("chat-messages");
@@ -272,6 +198,34 @@ def render_chat_interface(conversation) -> str:
     </body>
     </html>
     """
+
+def init_conversation(session_id: str):
+    """
+    Gemini API의 채팅 세션을 생성하여 초기 대화 이력을 저장합니다.
+    """
+    initial_message = (
+        "모든 답은 당신 안에 있습니다. "
+        "저는 그 여정을 함께하는 스님 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
+    )
+    # Gemini API를 사용하여 채팅 세션 생성 (모델: gemini-2.0-flash)
+    chat_session = client.chats.create(model="gemini-2.0-flash")
+    conversation_store[session_id] = {
+        "chat": chat_session,
+        "messages": [{"role": "assistant", "content": initial_message}]
+    }
+
+def get_conversation(session_id: str):
+    if session_id not in conversation_store:
+        init_conversation(session_id)
+    return conversation_store[session_id]
+
+async def get_assistant_reply(chat_session, prompt: str) -> str:
+    """
+    Gemini API의 ChatSession을 이용하여 응답을 생성합니다.
+    """
+    # blocking call을 비동기적으로 실행 (필요 시)
+    response = await asyncio.to_thread(chat_session.send_message, prompt)
+    return response.text
 
 @app.get("/", response_class=HTMLResponse)
 async def get_chat(request: Request):
@@ -338,8 +292,10 @@ async def message_answer(
         return HTMLResponse("No user message found", status_code=400)
     
     last_user_message = user_messages[-1]["content"]
-    ai_reply = await get_assistant_reply_thread(conv["thread_id"], last_user_message)
+    chat_session = conv["chat"]
+    ai_reply = await get_assistant_reply(chat_session, last_user_message)
     
+    # 최신 응답 업데이트
     if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
         conv["messages"][-1]["content"] = ai_reply
     else:
