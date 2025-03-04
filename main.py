@@ -78,7 +78,7 @@ def render_chat_interface(conversation) -> str:
     <head>
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
-      <title>스님 AI</title>
+      <title>현대불교신문 AI</title>
       <!-- HTMX -->
       <script src="https://unpkg.com/htmx.org@1.7.0"></script>
       <!-- Tailwind CSS -->
@@ -176,7 +176,7 @@ def render_chat_interface(conversation) -> str:
                 class="flex w-full">
             <input type="text"
                    name="message"
-                   placeholder="스님 AI에게 질문하세요"
+                   placeholder="메시지"
                    class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
                    required />
             <!-- 전송 버튼: 화살표(→) 아이콘 -->
@@ -211,7 +211,7 @@ def init_conversation(session_id: str):
     )
     initial_message = (
         "모든 답은 당신 안에 있습니다. "
-        "저는 그 여정을 함께하는 스님 AI입니다. 무엇이 궁금하신가요? 🙏🏻"
+        "저는 그 여정을 함께하는 현대불교신문 AI입니다. 무엇이 궁금하신가요?"
     )
     # Gemini API를 사용하여 채팅 세션 생성 (모델: gemini-2.0-flash)
     chat_session = client.chats.create(model="gemini-2.0-flash")
