@@ -50,6 +50,7 @@ def convert_newlines_to_br(text: str) -> str:
 def render_chat_interface(conversation) -> str:
     """
     대화 이력 중 "system" 역할 메시지는 UI에 표시하지 않습니다.
+    배경 이미지는 불교 사찰/풍경 관련 이미지 URL로 설정합니다.
     """
     messages_html = ""
     for msg in conversation["messages"]:
@@ -89,7 +90,8 @@ def render_chat_interface(conversation) -> str:
         }}
         body {{
           font-family: 'Noto Sans KR', sans-serif;
-          background: url('https://picsum.photos/id/1062/1200/800') no-repeat center center;
+          /* 불교 사찰/풍경 관련 이미지 URL (예시: Unsplash) */
+          background: url('https://source.unsplash.com/1600x900/?buddhism,temple') no-repeat center center;
           background-size: cover;
           background-color: rgba(246, 242, 235, 0.8);
           background-blend-mode: lighten;
@@ -157,7 +159,7 @@ def render_chat_interface(conversation) -> str:
               class="h-10 mr-2"
             />
           </div>
-          <!-- 대화 초기화 버튼: 회전 화살표(↻) 아이콘, 색상: 검정 -->
+          <!-- 대화 초기화 버튼: 회전 화살표(↻) 아이콘, 검은색 스타일 -->
           <form action="/reset" method="get" class="flex justify-end">
             <button class="bg-black hover:bg-gray-800 text-white font-bold py-1 px-2 text-sm sm:py-2 sm:px-4 sm:text-base rounded-lg border border-black shadow-lg hover:shadow-xl transition-all duration-300">
               ↻
@@ -179,7 +181,7 @@ def render_chat_interface(conversation) -> str:
                    placeholder="메시지"
                    class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-800"
                    required />
-            <!-- 전송 버튼: 화살표(→) 아이콘, 색상: 검정 -->
+            <!-- 전송 버튼: 화살표(→) 아이콘, 검은색 스타일 -->
             <button type="submit"
                     class="bg-black hover:bg-gray-800 text-white font-bold p-3 rounded-r-lg border border-black shadow-lg hover:shadow-xl transition-all duration-300">
               →
