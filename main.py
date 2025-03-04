@@ -17,7 +17,7 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# GEMINI_API_KEY 환경 변수 확인
+# GEMINI_API_KEY 환경 변수 확인 (Google AI Studio에서 발급받은 키)
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
@@ -49,7 +49,8 @@ def convert_newlines_to_br(text: str) -> str:
 def render_chat_interface(conversation) -> str:
     """
     - system 역할 메시지는 UI에 표시하지 않음.
-    - 사용자(user)와 AI(assistant)의 말풍선을 좀 더 톤 다운된 그레이 계열로 구분.
+    - 말풍선 색상은 유지 (assistant: bg-gray-100 + teal 포인트, user: bg-gray-200 + gray 포인트)
+    - 컨테이너 색상/배경을 좀 더 어둡게 톤 다운.
     """
     messages_html = ""
     for msg in conversation["messages"]:
@@ -57,13 +58,12 @@ def render_chat_interface(conversation) -> str:
             continue  # 시스템 메시지는 표시하지 않음
 
         rendered_content = convert_newlines_to_br(msg["content"])
-        # 공통 말풍선 스타일
         base_bubble_class = (
             "p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300 animate-fadeIn"
         )
 
         if msg["role"] == "assistant":
-            # AI 말풍선: 밝은 그레이 + 테일색 포인트
+            # AI 말풍선
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 items-start">
                 <div class="bubble bg-gray-100 border-l-2 border-teal-300 {base_bubble_class}">
@@ -72,7 +72,7 @@ def render_chat_interface(conversation) -> str:
             </div>
             """
         else:
-            # 사용자 말풍선: 좀 더 진한 그레이 + 회색 포인트
+            # 사용자 말풍선
             messages_html += f"""
             <div class="chat-message user-message flex justify-end mb-4 items-start">
                 <div class="bubble bg-gray-200 border-r-2 border-gray-400 {base_bubble_class}">
@@ -98,7 +98,7 @@ def render_chat_interface(conversation) -> str:
         }}
         body {{
           font-family: 'Noto Sans KR', sans-serif;
-          /* 불교 사찰 풍경 이미지 */
+          /* 불교 사찰 풍경 이미지 (lighten 모드 유지) */
           background: url('https://source.unsplash.com/1600x900/?buddhism,temple') no-repeat center center;
           background-size: cover;
           background-color: rgba(246, 242, 235, 0.8);
@@ -117,25 +117,26 @@ def render_chat_interface(conversation) -> str:
           max-width: 800px;
           height: 90vh;
           margin: auto;
-          background-color: rgba(255, 255, 255, 0.35);
+          /* 기존 255,255,255,0.35 -> rgba(0,0,0,0.3)로 변경해 더 어둡게 */
+          background-color: rgba(0, 0, 0, 0.3);
           backdrop-filter: blur(10px);
           border-radius: 1rem;
           box-shadow: 0 8px 24px rgba(0,0,0,0.2);
           overflow: hidden;
-          border: 1px solid rgba(255,255,255,0.4);
+          border: 1px solid rgba(255,255,255,0.2);
         }}
         #chat-header {{
           position: absolute;
           top: 0;
           left: 0; right: 0;
           height: 60px;
-          background-color: rgba(255, 255, 255, 0.3);
+          background-color: rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(6px);
           display: flex;
           align-items: center;
           justify-content: space-between;
           padding: 0 1rem;
-          border-bottom: 1px solid rgba(255,255,255,0.4);
+          border-bottom: 1px solid rgba(255,255,255,0.2);
         }}
         #chat-messages {{
           position: absolute;
@@ -150,12 +151,12 @@ def render_chat_interface(conversation) -> str:
           bottom: 0;
           left: 0; right: 0;
           height: 70px;
-          background-color: rgba(255, 255, 255, 0.3);
+          background-color: rgba(255, 255, 255, 0.1);
           backdrop-filter: blur(6px);
           display: flex;
           align-items: center;
           padding: 0 1rem;
-          border-top: 1px solid rgba(255,255,255,0.4);
+          border-top: 1px solid rgba(255,255,255,0.2);
         }}
       </style>
     </head>
