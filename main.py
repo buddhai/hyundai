@@ -54,42 +54,50 @@ def render_chat_interface(conversation) -> str:
     for msg in conversation["messages"]:
         if msg["role"] == "system":
             continue  # 시스템 메시지는 표시하지 않음
+
         rendered_content = convert_newlines_to_br(msg["content"])
-        base_bubble_class = "p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300 animate-fadeIn"
+        # 공통 말풍선 스타일
+        base_bubble_class = (
+            "p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300 animate-fadeIn"
+        )
+
         if msg["role"] == "assistant":
-            # AI 답변 말풍선: 배경과 테두리 색상을 beige/갈색 계열로 변경
+            # AI 답변 말풍선: 왼쪽 포인트 색(Teal) + 살짝 투명한 흰색 배경
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 items-start">
-                <div class="bubble bg-yellow-100 border-l-4 border-yellow-500 {base_bubble_class}">
+                <div class="bubble bg-white/70 border-l-2 border-teal-300 {base_bubble_class}">
                     {rendered_content}
                 </div>
             </div>
             """
         else:
+            # 사용자 말풍선: 오른쪽 정렬, 흰색/70
             messages_html += f"""
             <div class="chat-message user-message flex justify-end mb-4 items-start">
-                <div class="bubble bg-gray-100 border-r-4 border-gray-400 {base_bubble_class}">
+                <div class="bubble bg-white/70 border-r-2 border-gray-300 {base_bubble_class}">
                     {rendered_content}
                 </div>
             </div>
             """
+
     return f"""
     <!DOCTYPE html>
     <html lang="ko">
     <head>
-      <meta charset="UTF-8">
-      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       <title>현대불교신문 AI</title>
       <!-- HTMX -->
       <script src="https://unpkg.com/htmx.org@1.7.0"></script>
       <!-- Tailwind CSS -->
-      <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+      <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet" />
       <style>
         html, body {{
           margin: 0; padding: 0; height: 100%;
         }}
         body {{
           font-family: 'Noto Sans KR', sans-serif;
+          /* 불교 사찰 풍경 이미지 */
           background: url('https://source.unsplash.com/1600x900/?buddhism,temple') no-repeat center center;
           background-size: cover;
           background-color: rgba(246, 242, 235, 0.8);
@@ -152,16 +160,16 @@ def render_chat_interface(conversation) -> str:
     </head>
     <body class="h-full flex items-center justify-center">
       <div class="chat-container">
-        <!-- 헤더: 로고 이미지로만 구성 -->
+        <!-- 헤더: 로고 이미지 -->
         <div id="chat-header">
           <div class="flex items-center">
             <img 
-              src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo5.png" 
-              alt="현대불교 로고" 
+              src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo5.png"
+              alt="현대불교 로고"
               class="h-10"
             />
           </div>
-          <!-- 대화 초기화 버튼: 아이콘만 (회전 화살표) -->
+          <!-- 대화 초기화 버튼 (아이콘만) -->
           <form action="/reset" method="get" class="flex justify-end">
             <button class="
               bg-gradient-to-r from-gray-900 to-gray-700
@@ -169,7 +177,7 @@ def render_chat_interface(conversation) -> str:
               text-white
               py-2 px-4
               rounded-full
-              border border-gray-900
+              border-0
               shadow-md
               hover:shadow-xl
               transition-all
@@ -194,6 +202,7 @@ def render_chat_interface(conversation) -> str:
                 hx-swap="beforeend"
                 onsubmit="setTimeout(() => this.reset(), 0)"
                 class="flex w-full">
+            <!-- 테두리를 없애고, 반투명 흰색 배경만 적용 -->
             <input type="text"
                    name="message"
                    placeholder="메시지"
@@ -201,14 +210,14 @@ def render_chat_interface(conversation) -> str:
                      flex-1
                      p-3
                      rounded-l-full
-                     border border-gray-300
+                     bg-white/70
+                     border-0
+                     focus:ring-0
                      focus:outline-none
-                     focus:ring-2
-                     focus:ring-gray-600
                      text-gray-700
                    "
                    required />
-            <!-- 전송 버튼: 아이콘만 (화살표) -->
+            <!-- 전송 버튼 (아이콘만) -->
             <button type="submit"
                     class="
                       bg-gradient-to-r from-gray-900 to-gray-700
@@ -216,7 +225,7 @@ def render_chat_interface(conversation) -> str:
                       text-white
                       py-2 px-4
                       rounded-r-full
-                      border border-gray-900
+                      border-0
                       shadow-md
                       hover:shadow-xl
                       transition-all
@@ -296,14 +305,14 @@ async def message_init(
         
         user_message_html = f"""
         <div class="chat-message user-message flex justify-end mb-4 items-start animate-fadeIn">
-            <div class="bubble bg-gray-100 border-r-4 border-gray-400 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
+            <div class="bubble bg-white/70 border-r-2 border-gray-300 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
                 {convert_newlines_to_br(message)}
             </div>
         </div>
         """
         placeholder_html = f"""
         <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
-            <div class="bubble bg-yellow-100 border-l-4 border-yellow-500 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300"
+            <div class="bubble bg-white/70 border-l-2 border-teal-300 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300"
                  id="ai-msg-{placeholder_id}"
                  hx-get="/message?phase=answer&placeholder_id={placeholder_id}"
                  hx-trigger="load"
@@ -339,6 +348,7 @@ async def message_answer(
     chat_session = conv["chat"]
     ai_reply = await get_assistant_reply(chat_session, last_user_message)
     
+    # 기존 placeholder "답변 생성 중..." 부분 업데이트
     if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
         conv["messages"][-1]["content"] = ai_reply
     else:
@@ -346,7 +356,7 @@ async def message_answer(
     
     final_ai_html = f"""
     <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
-        <div class="bubble bg-yellow-100 border-l-4 border-yellow-500 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
+        <div class="bubble bg-white/70 border-l-2 border-teal-300 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
             {convert_newlines_to_br(ai_reply)}
         </div>
     </div>
