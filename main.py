@@ -48,7 +48,8 @@ def convert_newlines_to_br(text: str) -> str:
 
 def render_chat_interface(conversation) -> str:
     """
-    대화 이력 중 "system" 역할 메시지는 UI에 표시하지 않습니다.
+    - system 역할 메시지는 UI에 표시하지 않음.
+    - 사용자(user)와 AI(assistant)의 말풍선을 다른 색으로 구분.
     """
     messages_html = ""
     for msg in conversation["messages"]:
@@ -62,7 +63,7 @@ def render_chat_interface(conversation) -> str:
         )
 
         if msg["role"] == "assistant":
-            # AI 답변 말풍선: 왼쪽 포인트 색(Teal) + 살짝 투명한 흰색 배경
+            # AI 답변 말풍선: 왼쪽 정렬, 반투명 흰색 배경, 테일색 포인트
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 items-start">
                 <div class="bubble bg-white/70 border-l-2 border-teal-300 {base_bubble_class}">
@@ -71,10 +72,10 @@ def render_chat_interface(conversation) -> str:
             </div>
             """
         else:
-            # 사용자 말풍선: 오른쪽 정렬, 흰색/70
+            # 사용자 말풍선: 오른쪽 정렬, 밝은 회색 배경, 회색 포인트
             messages_html += f"""
             <div class="chat-message user-message flex justify-end mb-4 items-start">
-                <div class="bubble bg-white/70 border-r-2 border-gray-300 {base_bubble_class}">
+                <div class="bubble bg-gray-50 border-r-2 border-gray-300 {base_bubble_class}">
                     {rendered_content}
                 </div>
             </div>
@@ -202,7 +203,6 @@ def render_chat_interface(conversation) -> str:
                 hx-swap="beforeend"
                 onsubmit="setTimeout(() => this.reset(), 0)"
                 class="flex w-full">
-            <!-- 테두리를 없애고, 반투명 흰색 배경만 적용 -->
             <input type="text"
                    name="message"
                    placeholder="메시지"
@@ -269,7 +269,7 @@ def init_conversation(session_id: str):
         "chat": chat_session,
         "messages": [
             {"role": "system", "content": system_message},
-            {"role": "assistant", "content": initial_message}
+            {"role": "assistant", "content": initial_message},
         ]
     }
 
@@ -305,7 +305,7 @@ async def message_init(
         
         user_message_html = f"""
         <div class="chat-message user-message flex justify-end mb-4 items-start animate-fadeIn">
-            <div class="bubble bg-white/70 border-r-2 border-gray-300 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
+            <div class="bubble bg-gray-50 border-r-2 border-gray-300 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
                 {convert_newlines_to_br(message)}
             </div>
         </div>
@@ -348,7 +348,6 @@ async def message_answer(
     chat_session = conv["chat"]
     ai_reply = await get_assistant_reply(chat_session, last_user_message)
     
-    # 기존 placeholder "답변 생성 중..." 부분 업데이트
     if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
         conv["messages"][-1]["content"] = ai_reply
     else:
