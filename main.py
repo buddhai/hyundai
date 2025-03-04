@@ -22,7 +22,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
 
-# Gemini API 클라이언트 초기화
+# Gemini API 클라이언트 초기화 (google-genai 라이브러리 사용)
 from google import genai
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -49,8 +49,7 @@ def convert_newlines_to_br(text: str) -> str:
 def render_chat_interface(conversation) -> str:
     """
     - system 역할 메시지는 UI에 표시하지 않음.
-    - 말풍선 색상은 유지 (assistant: bg-gray-100 + teal 포인트, user: bg-gray-200 + gray 포인트)
-    - 컨테이너 색상/배경을 좀 더 어둡게 톤 다운.
+    - 사용자와 AI 말풍선을 좌우 정렬하고, 최대 너비 제한 및 자동 줄바꿈 적용 (카카오톡/DM 느낌)
     """
     messages_html = ""
     for msg in conversation["messages"]:
@@ -58,24 +57,25 @@ def render_chat_interface(conversation) -> str:
             continue  # 시스템 메시지는 표시하지 않음
 
         rendered_content = convert_newlines_to_br(msg["content"])
+        # 공통 말풍선 스타일
         base_bubble_class = (
-            "p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300 animate-fadeIn"
+            "p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300 animate-fadeIn max-w-[70%]"
         )
 
         if msg["role"] == "assistant":
-            # AI 말풍선
+            # AI 말풍선: 왼쪽 정렬
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 items-start">
-                <div class="bubble bg-gray-100 border-l-2 border-teal-300 {base_bubble_class}">
+                <div class="bubble bg-white/70 border-l-2 border-teal-300 {base_bubble_class}">
                     {rendered_content}
                 </div>
             </div>
             """
         else:
-            # 사용자 말풍선
+            # 사용자 말풍선: 오른쪽 정렬
             messages_html += f"""
             <div class="chat-message user-message flex justify-end mb-4 items-start">
-                <div class="bubble bg-gray-200 border-r-2 border-gray-400 {base_bubble_class}">
+                <div class="bubble bg-gray-50 border-r-2 border-gray-300 {base_bubble_class}">
                     {rendered_content}
                 </div>
             </div>
@@ -117,26 +117,25 @@ def render_chat_interface(conversation) -> str:
           max-width: 800px;
           height: 90vh;
           margin: auto;
-          /* 기존 255,255,255,0.35 -> rgba(0,0,0,0.3)로 변경해 더 어둡게 */
-          background-color: rgba(0, 0, 0, 0.3);
+          background-color: rgba(255, 255, 255, 0.8);
           backdrop-filter: blur(10px);
           border-radius: 1rem;
           box-shadow: 0 8px 24px rgba(0,0,0,0.2);
           overflow: hidden;
-          border: 1px solid rgba(255,255,255,0.2);
+          border: 1px solid rgba(255,255,255,0.3);
         }}
         #chat-header {{
           position: absolute;
           top: 0;
           left: 0; right: 0;
           height: 60px;
-          background-color: rgba(255, 255, 255, 0.1);
+          background-color: rgba(255, 255, 255, 0.6);
           backdrop-filter: blur(6px);
           display: flex;
           align-items: center;
           justify-content: space-between;
           padding: 0 1rem;
-          border-bottom: 1px solid rgba(255,255,255,0.2);
+          border-bottom: 1px solid rgba(255,255,255,0.3);
         }}
         #chat-messages {{
           position: absolute;
@@ -151,18 +150,18 @@ def render_chat_interface(conversation) -> str:
           bottom: 0;
           left: 0; right: 0;
           height: 70px;
-          background-color: rgba(255, 255, 255, 0.1);
+          background-color: rgba(255, 255, 255, 0.6);
           backdrop-filter: blur(6px);
           display: flex;
           align-items: center;
           padding: 0 1rem;
-          border-top: 1px solid rgba(255,255,255,0.2);
+          border-top: 1px solid rgba(255,255,255,0.3);
         }}
       </style>
     </head>
     <body class="h-full flex items-center justify-center">
       <div class="chat-container">
-        <!-- 헤더 -->
+        <!-- 헤더: 로고 이미지만 표시 -->
         <div id="chat-header">
           <div class="flex items-center">
             <img 
@@ -218,7 +217,6 @@ def render_chat_interface(conversation) -> str:
                      text-gray-700
                    "
                    required />
-            <!-- 전송 버튼 (아이콘만) -->
             <button type="submit"
                     class="
                       bg-gradient-to-r from-gray-900 to-gray-700
@@ -305,14 +303,14 @@ async def message_init(
         
         user_message_html = f"""
         <div class="chat-message user-message flex justify-end mb-4 items-start animate-fadeIn">
-            <div class="bubble bg-gray-200 border-r-2 border-gray-400 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
+            <div class="bubble bg-gray-200 border-r-2 border-gray-400 {base_bubble_class if 'base_bubble_class' in globals() else ''}">
                 {convert_newlines_to_br(message)}
             </div>
         </div>
         """
         placeholder_html = f"""
         <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
-            <div class="bubble bg-gray-100 border-l-2 border-teal-300 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300"
+            <div class="bubble bg-gray-100 border-l-2 border-teal-300 {base_bubble_class if 'base_bubble_class' in globals() else ''}"
                  id="ai-msg-{placeholder_id}"
                  hx-get="/message?phase=answer&placeholder_id={placeholder_id}"
                  hx-trigger="load"
@@ -355,7 +353,7 @@ async def message_answer(
     
     final_ai_html = f"""
     <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
-        <div class="bubble bg-gray-100 border-l-2 border-teal-300 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
+        <div class="bubble bg-gray-100 border-l-2 border-teal-300 {base_bubble_class if 'base_bubble_class' in globals() else ''}">
             {convert_newlines_to_br(ai_reply)}
         </div>
     </div>
