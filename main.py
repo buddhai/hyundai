@@ -57,7 +57,6 @@ def render_chat_interface(conversation) -> str:
             continue  # 시스템 메시지는 표시하지 않음
         rendered_content = convert_newlines_to_br(msg["content"])
         if msg["role"] == "assistant":
-            # 아이콘을 표시하던 <div> 제거
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 animate-fadeIn">
                 <div class="bubble bg-slate-100 border-l-4 border-slate-400 p-3 rounded-lg shadow-sm">
@@ -66,7 +65,6 @@ def render_chat_interface(conversation) -> str:
             </div>
             """
         else:
-            # 아이콘을 표시하던 <div> 제거
             messages_html += f"""
             <div class="chat-message user-message flex justify-end mb-4 animate-fadeIn">
                 <div class="bubble bg-white border-l-4 border-gray-400 p-3 rounded-lg shadow-sm mr-3">
@@ -159,9 +157,10 @@ def render_chat_interface(conversation) -> str:
               class="h-10 mr-2"
             />
           </div>
+          <!-- 대화 초기화 버튼: 회전 화살표(↻) 아이콘 -->
           <form action="/reset" method="get" class="flex justify-end">
             <button class="bg-blue-700 hover:bg-blue-600 text-white font-bold py-1 px-2 text-sm sm:py-2 sm:px-4 sm:text-base rounded-lg border border-blue-900 shadow-lg hover:shadow-xl transition-all duration-300">
-              대화 초기화
+              ↻
             </button>
           </form>
         </div>
@@ -180,9 +179,10 @@ def render_chat_interface(conversation) -> str:
                    placeholder="스님 AI에게 질문하세요"
                    class="flex-1 p-3 rounded-l-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-blue-400"
                    required />
+            <!-- 전송 버튼: 화살표(→) 아이콘 -->
             <button type="submit"
                     class="bg-blue-700 hover:bg-blue-600 text-white font-bold p-3 rounded-r-lg border border-blue-900 shadow-lg hover:shadow-xl transition-all duration-300">
-              전송
+              →
             </button>
           </form>
         </div>
@@ -204,9 +204,6 @@ def render_chat_interface(conversation) -> str:
     """
 
 def init_conversation(session_id: str):
-    """
-    Gemini API를 사용하여 채팅 세션을 생성하고, 시스템 프롬프트와 초기 대화 이력을 저장합니다.
-    """
     system_message = (
         "시스템 안내: 당신은 한마음선원 현대불교신문의 AI입니다. "
         "항상 친근하고 예의바르게, 그 신문의 명예와 위상을 높이는 답변을 제공하며, "
@@ -232,9 +229,6 @@ def get_conversation(session_id: str):
     return conversation_store[session_id]
 
 async def get_assistant_reply(chat_session, prompt: str) -> str:
-    """
-    Gemini API의 채팅 세션을 통해 응답을 생성하고, 마크다운 굵게 표시 문법을 제거합니다.
-    """
     response = await asyncio.to_thread(chat_session.send_message, prompt)
     return remove_markdown_bold(response.text)
 
