@@ -22,7 +22,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
 
-# Gemini API 클라이언트 초기화 (google-genai 라이브러리 사용)
+# Gemini API 클라이언트 초기화
 from google import genai
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -57,7 +57,6 @@ def render_chat_interface(conversation) -> str:
             continue  # 시스템 메시지는 표시하지 않음
         rendered_content = convert_newlines_to_br(msg["content"])
 
-        # 공통 스타일
         base_bubble_class = (
             "p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300 animate-fadeIn"
         )
@@ -88,7 +87,7 @@ def render_chat_interface(conversation) -> str:
       <meta charset="UTF-8">
       <meta name="viewport" content="width=device-width, initial-scale=1.0">
       <title>현대불교신문 AI</title>
-      <!-- HTMX for dynamic partial updates -->
+      <!-- HTMX -->
       <script src="https://unpkg.com/htmx.org@1.7.0"></script>
       <!-- Tailwind CSS -->
       <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
@@ -98,7 +97,7 @@ def render_chat_interface(conversation) -> str:
         }}
         body {{
           font-family: 'Noto Sans KR', sans-serif;
-          /* Unsplash 배경 (불교 사찰 풍경) */
+          /* 불교 사찰 풍경 이미지 */
           background: url('https://source.unsplash.com/1600x900/?buddhism,temple') no-repeat center center;
           background-size: cover;
           background-color: rgba(246, 242, 235, 0.8);
@@ -117,7 +116,6 @@ def render_chat_interface(conversation) -> str:
           max-width: 800px;
           height: 90vh;
           margin: auto;
-          /* 반투명 흰색+블러 배경으로 카드 느낌 */
           background-color: rgba(255, 255, 255, 0.35);
           backdrop-filter: blur(10px);
           border-radius: 1rem;
@@ -162,22 +160,21 @@ def render_chat_interface(conversation) -> str:
     </head>
     <body class="h-full flex items-center justify-center">
       <div class="chat-container">
-        <!-- 헤더 -->
+        <!-- 헤더: 텍스트 대신 로고 이미지만 표시 -->
         <div id="chat-header">
           <div class="flex items-center">
             <img 
               src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo5.png" 
               alt="현대불교 로고" 
-              class="h-10 mr-2"
+              class="h-10"
             />
-            <h1 class="text-lg font-bold text-gray-800">현대불교신문 AI</h1>
           </div>
-          <!-- 대화 초기화 버튼: 그라디언트 + 아이콘 + 텍스트 -->
+          <!-- 대화 초기화 버튼: 아이콘만 -->
           <form action="/reset" method="get" class="flex justify-end">
             <button class="
               bg-gradient-to-r from-gray-900 to-gray-700
               hover:from-gray-700 hover:to-gray-900
-              text-white font-semibold
+              text-white
               py-2 px-4
               rounded-full
               border border-gray-900
@@ -187,7 +184,7 @@ def render_chat_interface(conversation) -> str:
               duration-300
               flex items-center
             ">
-              <span class="mr-2">↻</span> 초기화
+              ↻
             </button>
           </form>
         </div>
@@ -207,7 +204,7 @@ def render_chat_interface(conversation) -> str:
                 class="flex w-full">
             <input type="text"
                    name="message"
-                   placeholder="질문을 입력하세요..."
+                   placeholder="메시지"
                    class="
                      flex-1
                      p-3
@@ -219,12 +216,12 @@ def render_chat_interface(conversation) -> str:
                      text-gray-700
                    "
                    required />
-            <!-- 전송 버튼: 그라디언트 + 아이콘 + 텍스트 -->
+            <!-- 전송 버튼: 아이콘만 -->
             <button type="submit"
                     class="
                       bg-gradient-to-r from-gray-900 to-gray-700
                       hover:from-gray-700 hover:to-gray-900
-                      text-white font-semibold
+                      text-white
                       py-2 px-4
                       rounded-r-full
                       border border-gray-900
@@ -234,8 +231,7 @@ def render_chat_interface(conversation) -> str:
                       duration-300
                       flex items-center
                     ">
-              전송
-              <span class="ml-2">→</span>
+              →
             </button>
           </form>
         </div>
@@ -271,106 +267,4 @@ def init_conversation(session_id: str):
     conversation_store[session_id] = {
         "chat": chat_session,
         "messages": [
-            {"role": "system", "content": system_message},
-            {"role": "assistant", "content": initial_message}
-        ]
-    }
-
-def get_conversation(session_id: str):
-    if session_id not in conversation_store:
-        init_conversation(session_id)
-    return conversation_store[session_id]
-
-async def get_assistant_reply(chat_session, prompt: str) -> str:
-    response = await asyncio.to_thread(chat_session.send_message, prompt)
-    return remove_markdown_bold(response.text)
-
-@app.get("/", response_class=HTMLResponse)
-async def get_chat(request: Request):
-    session_id = request.session.get("session_id", str(uuid.uuid4()))
-    request.session["session_id"] = session_id
-    return HTMLResponse(content=render_chat_interface(get_conversation(session_id)))
-
-@app.post("/message", response_class=HTMLResponse)
-async def message_init(
-    request: Request,
-    message: str = Form(...),
-    phase: str = Query(None)
-):
-    session_id = request.session.get("session_id", str(uuid.uuid4()))
-    request.session["session_id"] = session_id
-    conv = get_conversation(session_id)
-    
-    if phase == "init":
-        conv["messages"].append({"role": "user", "content": message})
-        placeholder_id = str(uuid.uuid4())
-        conv["messages"].append({"role": "assistant", "content": "답변 생성 중..."})
-        
-        user_message_html = f"""
-        <div class="chat-message user-message flex justify-end mb-4 items-start animate-fadeIn">
-            <div class="bubble bg-gray-100 border-r-4 border-gray-400 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
-                {convert_newlines_to_br(message)}
-            </div>
-        </div>
-        """
-        placeholder_html = f"""
-        <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
-            <div class="bubble bg-white/80 border-l-4 border-indigo-400 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300"
-                 id="ai-msg-{placeholder_id}"
-                 hx-get="/message?phase=answer&placeholder_id={placeholder_id}"
-                 hx-trigger="load"
-                 hx-target="#assistant-block-{placeholder_id}"
-                 hx-swap="outerHTML">
-                답변 생성 중...
-            </div>
-        </div>
-        """
-        return HTMLResponse(content=user_message_html + placeholder_html)
-    
-    return HTMLResponse("Invalid phase", status_code=400)
-
-@app.get("/message", response_class=HTMLResponse)
-async def message_answer(
-    request: Request,
-    placeholder_id: str = Query(None),
-    phase: str = Query(None)
-):
-    if phase != "answer":
-        return HTMLResponse("Invalid phase", status_code=400)
-    
-    session_id = request.session.get("session_id")
-    if not session_id:
-        return HTMLResponse("Session not found", status_code=400)
-    
-    conv = get_conversation(session_id)
-    user_messages = [m for m in conv["messages"] if m["role"] == "user"]
-    if not user_messages:
-        return HTMLResponse("No user message found", status_code=400)
-    
-    last_user_message = user_messages[-1]["content"]
-    chat_session = conv["chat"]
-    ai_reply = await get_assistant_reply(chat_session, last_user_message)
-    
-    if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
-        conv["messages"][-1]["content"] = ai_reply
-    else:
-        conv["messages"].append({"role": "assistant", "content": ai_reply})
-    
-    final_ai_html = f"""
-    <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
-        <div class="bubble bg-white/80 border-l-4 border-indigo-400 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
-            {convert_newlines_to_br(ai_reply)}
-        </div>
-    </div>
-    """
-    return HTMLResponse(content=final_ai_html)
-
-@app.get("/reset")
-async def reset_conversation(request: Request):
-    session_id = request.session.get("session_id")
-    if session_id and session_id in conversation_store:
-        del conversation_store[session_id]
-    return RedirectResponse(url="/", status_code=302)
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+            {"role": "system", "content": system_message}
