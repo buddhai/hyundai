@@ -17,12 +17,12 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# GEMINI_API_KEY 환경 변수 확인 (Google AI Studio에서 발급받은 키)
+# GEMINI_API_KEY 환경 변수 확인
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
 
-# Gemini API 클라이언트 초기화 (google-genai 라이브러리 사용)
+# Gemini API 클라이언트 초기화
 from google import genai
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -31,7 +31,6 @@ app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 
 conversation_store = {}
 
-# 공통 스타일 클래스 (말풍선)
 BASE_BUBBLE_CLASS = "p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300 animate-fadeIn"
 
 def remove_citation_markers(text: str) -> str:
@@ -50,10 +49,6 @@ def convert_newlines_to_br(text: str) -> str:
     return escaped.replace('\n', '<br>')
 
 def render_chat_interface(conversation) -> str:
-    """
-    - system 역할 메시지는 UI에 표시하지 않음.
-    - 좌우 정렬 및 자동 줄바꿈이 적용된 말풍선 표시
-    """
     messages_html = ""
     for msg in conversation["messages"]:
         if msg["role"] == "system":
@@ -61,7 +56,7 @@ def render_chat_interface(conversation) -> str:
 
         rendered_content = convert_newlines_to_br(msg["content"])
         if msg["role"] == "assistant":
-            # AI 말풍선: 왼쪽 정렬, 배경은 어두운 회색 계열
+            # AI 말풍선: 왼쪽 정렬, 어두운 회색 + Teal 포인트
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 items-start">
                 <div class="bubble bg-gray-200 border-l-2 border-teal-400 {BASE_BUBBLE_CLASS}" style="max-width:70%;">
@@ -70,7 +65,7 @@ def render_chat_interface(conversation) -> str:
             </div>
             """
         else:
-            # 사용자 말풍선: 오른쪽 정렬, 배경은 조금 더 밝은 회색
+            # 사용자 말풍선: 오른쪽 정렬, 조금 더 밝은 회색
             messages_html += f"""
             <div class="chat-message user-message flex justify-end mb-4 items-start">
                 <div class="bubble bg-gray-100 border-r-2 border-gray-300 {BASE_BUBBLE_CLASS}" style="max-width:70%;">
@@ -78,6 +73,7 @@ def render_chat_interface(conversation) -> str:
                 </div>
             </div>
             """
+
     return f"""
     <!DOCTYPE html>
     <html lang="ko">
@@ -95,6 +91,7 @@ def render_chat_interface(conversation) -> str:
         }}
         body {{
           font-family: 'Noto Sans KR', sans-serif;
+          /* 불교 사찰 풍경 이미지 (lighten 모드 유지) */
           background: url('https://source.unsplash.com/1600x900/?buddhism,temple') no-repeat center center;
           background-size: cover;
           background-color: rgba(246, 242, 235, 0.8);
@@ -157,7 +154,7 @@ def render_chat_interface(conversation) -> str:
     </head>
     <body class="h-full flex items-center justify-center">
       <div class="chat-container">
-        <!-- 헤더: 로고 이미지로만 구성 -->
+        <!-- 헤더: 로고 이미지 -->
         <div id="chat-header">
           <div class="flex items-center">
             <img 
@@ -186,7 +183,7 @@ def render_chat_interface(conversation) -> str:
           </form>
         </div>
 
-        <!-- 메시지 영역 -->
+        <!-- 메시지 표시 영역 -->
         <div id="chat-messages">
           {messages_html}
         </div>
@@ -199,6 +196,7 @@ def render_chat_interface(conversation) -> str:
                 hx-swap="beforeend"
                 onsubmit="setTimeout(() => this.reset(), 0)"
                 class="flex w-full">
+            <!-- 여기서 입력창을 좀 더 두드러지게: 흰 배경 + 테두리 + 포커스 효과 -->
             <input type="text"
                    name="message"
                    placeholder="메시지"
@@ -206,9 +204,10 @@ def render_chat_interface(conversation) -> str:
                      flex-1
                      p-3
                      rounded-l-full
-                     bg-white/70
-                     border-0
-                     focus:ring-0
+                     bg-white
+                     border border-gray-300
+                     focus:ring-2
+                     focus:ring-gray-400
                      focus:outline-none
                      text-gray-700
                    "
@@ -254,7 +253,7 @@ def init_conversation(session_id: str):
         "항상 친근하고 예의바르게, 그 신문의 명예와 위상을 높이는 답변을 제공하며, "
         "사용자의 질문에 대해 상세하고 정확하게, 그리고 매우 호의적으로 응답합니다."
     )
-    # 초기 메시지에 줄바꿈을 추가
+    # 줄바꿈 포함된 초기 메시지
     initial_message = (
         "모든 답은 당신 안에 있습니다.\n"
         "저는 그 여정을 함께하는 현대불교신문 AI입니다.\n"
