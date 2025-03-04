@@ -22,7 +22,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
 
-# Gemini API 클라이언트 초기화
+# Gemini API 클라이언트 초기화 (google-genai 라이브러리 사용)
 from google import genai
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -43,7 +43,6 @@ def remove_markdown_bold(text: str) -> str:
     return text
 
 def convert_newlines_to_br(text: str) -> str:
-    # HTML 이스케이프 후 줄바꿈을 <br>로 변환
     escaped = html.escape(text)
     return escaped.replace('\n', '<br>')
 
@@ -56,22 +55,17 @@ def render_chat_interface(conversation) -> str:
         if msg["role"] == "system":
             continue  # 시스템 메시지는 표시하지 않음
         rendered_content = convert_newlines_to_br(msg["content"])
-
-        base_bubble_class = (
-            "p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300 animate-fadeIn"
-        )
-
+        base_bubble_class = "p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300 animate-fadeIn"
         if msg["role"] == "assistant":
-            # 어시스턴트(챗봇) 말풍선: 왼쪽 정렬
+            # AI 답변 말풍선: 배경과 테두리 색상을 beige/갈색 계열로 변경
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 items-start">
-                <div class="bubble bg-white/80 border-l-4 border-indigo-400 {base_bubble_class}">
+                <div class="bubble bg-yellow-100 border-l-4 border-yellow-500 {base_bubble_class}">
                     {rendered_content}
                 </div>
             </div>
             """
         else:
-            # 사용자 말풍선: 오른쪽 정렬
             messages_html += f"""
             <div class="chat-message user-message flex justify-end mb-4 items-start">
                 <div class="bubble bg-gray-100 border-r-4 border-gray-400 {base_bubble_class}">
@@ -79,7 +73,6 @@ def render_chat_interface(conversation) -> str:
                 </div>
             </div>
             """
-
     return f"""
     <!DOCTYPE html>
     <html lang="ko">
@@ -97,7 +90,6 @@ def render_chat_interface(conversation) -> str:
         }}
         body {{
           font-family: 'Noto Sans KR', sans-serif;
-          /* 불교 사찰 풍경 이미지 */
           background: url('https://source.unsplash.com/1600x900/?buddhism,temple') no-repeat center center;
           background-size: cover;
           background-color: rgba(246, 242, 235, 0.8);
@@ -160,7 +152,7 @@ def render_chat_interface(conversation) -> str:
     </head>
     <body class="h-full flex items-center justify-center">
       <div class="chat-container">
-        <!-- 헤더: 텍스트 대신 로고 이미지만 표시 -->
+        <!-- 헤더: 로고 이미지로만 구성 -->
         <div id="chat-header">
           <div class="flex items-center">
             <img 
@@ -169,7 +161,7 @@ def render_chat_interface(conversation) -> str:
               class="h-10"
             />
           </div>
-          <!-- 대화 초기화 버튼: 아이콘만 -->
+          <!-- 대화 초기화 버튼: 아이콘만 (회전 화살표) -->
           <form action="/reset" method="get" class="flex justify-end">
             <button class="
               bg-gradient-to-r from-gray-900 to-gray-700
@@ -216,7 +208,7 @@ def render_chat_interface(conversation) -> str:
                      text-gray-700
                    "
                    required />
-            <!-- 전송 버튼: 아이콘만 -->
+            <!-- 전송 버튼: 아이콘만 (화살표) -->
             <button type="submit"
                     class="
                       bg-gradient-to-r from-gray-900 to-gray-700
@@ -267,4 +259,106 @@ def init_conversation(session_id: str):
     conversation_store[session_id] = {
         "chat": chat_session,
         "messages": [
-            {"role": "system", "content": system_message}
+            {"role": "system", "content": system_message},
+            {"role": "assistant", "content": initial_message}
+        ]
+    }
+
+def get_conversation(session_id: str):
+    if session_id not in conversation_store:
+        init_conversation(session_id)
+    return conversation_store[session_id]
+
+async def get_assistant_reply(chat_session, prompt: str) -> str:
+    response = await asyncio.to_thread(chat_session.send_message, prompt)
+    return remove_markdown_bold(response.text)
+
+@app.get("/", response_class=HTMLResponse)
+async def get_chat(request: Request):
+    session_id = request.session.get("session_id", str(uuid.uuid4()))
+    request.session["session_id"] = session_id
+    return HTMLResponse(content=render_chat_interface(get_conversation(session_id)))
+
+@app.post("/message", response_class=HTMLResponse)
+async def message_init(
+    request: Request,
+    message: str = Form(...),
+    phase: str = Query(None)
+):
+    session_id = request.session.get("session_id", str(uuid.uuid4()))
+    request.session["session_id"] = session_id
+    conv = get_conversation(session_id)
+    
+    if phase == "init":
+        conv["messages"].append({"role": "user", "content": message})
+        placeholder_id = str(uuid.uuid4())
+        conv["messages"].append({"role": "assistant", "content": "답변 생성 중..."})
+        
+        user_message_html = f"""
+        <div class="chat-message user-message flex justify-end mb-4 items-start animate-fadeIn">
+            <div class="bubble bg-gray-100 border-r-4 border-gray-400 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
+                {convert_newlines_to_br(message)}
+            </div>
+        </div>
+        """
+        placeholder_html = f"""
+        <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
+            <div class="bubble bg-yellow-100 border-l-4 border-yellow-500 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300"
+                 id="ai-msg-{placeholder_id}"
+                 hx-get="/message?phase=answer&placeholder_id={placeholder_id}"
+                 hx-trigger="load"
+                 hx-target="#assistant-block-{placeholder_id}"
+                 hx-swap="outerHTML">
+                답변 생성 중...
+            </div>
+        </div>
+        """
+        return HTMLResponse(content=user_message_html + placeholder_html)
+    
+    return HTMLResponse("Invalid phase", status_code=400)
+
+@app.get("/message", response_class=HTMLResponse)
+async def message_answer(
+    request: Request,
+    placeholder_id: str = Query(None),
+    phase: str = Query(None)
+):
+    if phase != "answer":
+        return HTMLResponse("Invalid phase", status_code=400)
+    
+    session_id = request.session.get("session_id")
+    if not session_id:
+        return HTMLResponse("Session not found", status_code=400)
+    
+    conv = get_conversation(session_id)
+    user_messages = [m for m in conv["messages"] if m["role"] == "user"]
+    if not user_messages:
+        return HTMLResponse("No user message found", status_code=400)
+    
+    last_user_message = user_messages[-1]["content"]
+    chat_session = conv["chat"]
+    ai_reply = await get_assistant_reply(chat_session, last_user_message)
+    
+    if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
+        conv["messages"][-1]["content"] = ai_reply
+    else:
+        conv["messages"].append({"role": "assistant", "content": ai_reply})
+    
+    final_ai_html = f"""
+    <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
+        <div class="bubble bg-yellow-100 border-l-4 border-yellow-500 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
+            {convert_newlines_to_br(ai_reply)}
+        </div>
+    </div>
+    """
+    return HTMLResponse(content=final_ai_html)
+
+@app.get("/reset")
+async def reset_conversation(request: Request):
+    session_id = request.session.get("session_id")
+    if session_id and session_id in conversation_store:
+        del conversation_store[session_id]
+    return RedirectResponse(url="/", status_code=302)
+
+if __name__ == "__main__":
+    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
