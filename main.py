@@ -152,7 +152,7 @@ def render_chat_interface(conversation) -> str:
         <div id="chat-header">
           <div class="flex items-center">
             <img 
-              src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo3.png" 
+              src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo4.png" 
               alt="현대불교 로고" 
               class="h-10 mr-2"
             />
