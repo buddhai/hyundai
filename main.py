@@ -17,12 +17,12 @@ load_dotenv()
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-# GEMINI_API_KEY 환경 변수 확인 (Google AI Studio에서 발급받은 키)
+# GEMINI_API_KEY 환경 변수 확인
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
 
-# Gemini API 클라이언트 초기화 (google-genai 라이브러리 사용)
+# Gemini API 클라이언트 초기화
 from google import genai
 client = genai.Client(api_key=GEMINI_API_KEY)
 
@@ -49,7 +49,7 @@ def convert_newlines_to_br(text: str) -> str:
 def render_chat_interface(conversation) -> str:
     """
     - system 역할 메시지는 UI에 표시하지 않음.
-    - 사용자(user)와 AI(assistant)의 말풍선을 다른 색으로 구분.
+    - 사용자(user)와 AI(assistant)의 말풍선을 좀 더 톤 다운된 그레이 계열로 구분.
     """
     messages_html = ""
     for msg in conversation["messages"]:
@@ -63,19 +63,19 @@ def render_chat_interface(conversation) -> str:
         )
 
         if msg["role"] == "assistant":
-            # AI 답변 말풍선: 왼쪽 정렬, 반투명 흰색 배경, 테일색 포인트
+            # AI 말풍선: 밝은 그레이 + 테일색 포인트
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 items-start">
-                <div class="bubble bg-white/70 border-l-2 border-teal-300 {base_bubble_class}">
+                <div class="bubble bg-gray-100 border-l-2 border-teal-300 {base_bubble_class}">
                     {rendered_content}
                 </div>
             </div>
             """
         else:
-            # 사용자 말풍선: 오른쪽 정렬, 밝은 회색 배경, 회색 포인트
+            # 사용자 말풍선: 좀 더 진한 그레이 + 회색 포인트
             messages_html += f"""
             <div class="chat-message user-message flex justify-end mb-4 items-start">
-                <div class="bubble bg-gray-50 border-r-2 border-gray-300 {base_bubble_class}">
+                <div class="bubble bg-gray-200 border-r-2 border-gray-400 {base_bubble_class}">
                     {rendered_content}
                 </div>
             </div>
@@ -161,7 +161,7 @@ def render_chat_interface(conversation) -> str:
     </head>
     <body class="h-full flex items-center justify-center">
       <div class="chat-container">
-        <!-- 헤더: 로고 이미지 -->
+        <!-- 헤더 -->
         <div id="chat-header">
           <div class="flex items-center">
             <img 
@@ -263,7 +263,6 @@ def init_conversation(session_id: str):
         "모든 답은 당신 안에 있습니다. "
         "저는 그 여정을 함께하는 현대불교신문 AI입니다. 무엇이 궁금하신가요?"
     )
-    # Gemini API를 사용하여 채팅 세션 생성 (모델: gemini-2.0-flash)
     chat_session = client.chats.create(model="gemini-2.0-flash")
     conversation_store[session_id] = {
         "chat": chat_session,
@@ -305,14 +304,14 @@ async def message_init(
         
         user_message_html = f"""
         <div class="chat-message user-message flex justify-end mb-4 items-start animate-fadeIn">
-            <div class="bubble bg-gray-50 border-r-2 border-gray-300 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
+            <div class="bubble bg-gray-200 border-r-2 border-gray-400 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
                 {convert_newlines_to_br(message)}
             </div>
         </div>
         """
         placeholder_html = f"""
         <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
-            <div class="bubble bg-white/70 border-l-2 border-teal-300 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300"
+            <div class="bubble bg-gray-100 border-l-2 border-teal-300 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300"
                  id="ai-msg-{placeholder_id}"
                  hx-get="/message?phase=answer&placeholder_id={placeholder_id}"
                  hx-trigger="load"
@@ -355,7 +354,7 @@ async def message_answer(
     
     final_ai_html = f"""
     <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
-        <div class="bubble bg-white/70 border-l-2 border-teal-300 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
+        <div class="bubble bg-gray-100 border-l-2 border-teal-300 p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300">
             {convert_newlines_to_br(ai_reply)}
         </div>
     </div>
