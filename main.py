@@ -31,6 +31,9 @@ app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 
 conversation_store = {}
 
+# 공통 스타일 클래스 (말풍선)
+BASE_BUBBLE_CLASS = "p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300 animate-fadeIn"
+
 def remove_citation_markers(text: str) -> str:
     return re.sub(r'【\d+:\d+†source】', '', text)
 
@@ -49,38 +52,32 @@ def convert_newlines_to_br(text: str) -> str:
 def render_chat_interface(conversation) -> str:
     """
     - system 역할 메시지는 UI에 표시하지 않음.
-    - 사용자와 AI 말풍선을 좌우 정렬하고, 최대 너비 제한 및 자동 줄바꿈 적용 (카카오톡/DM 느낌)
+    - 좌우 정렬 및 자동 줄바꿈이 적용된 말풍선 표시
     """
     messages_html = ""
     for msg in conversation["messages"]:
         if msg["role"] == "system":
-            continue  # 시스템 메시지는 표시하지 않음
+            continue
 
         rendered_content = convert_newlines_to_br(msg["content"])
-        # 공통 말풍선 스타일
-        base_bubble_class = (
-            "p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300 animate-fadeIn max-w-[70%]"
-        )
-
         if msg["role"] == "assistant":
-            # AI 말풍선: 왼쪽 정렬
+            # AI 말풍선: 왼쪽 정렬, 배경은 어두운 회색 계열
             messages_html += f"""
             <div class="chat-message assistant-message flex mb-4 items-start">
-                <div class="bubble bg-white/70 border-l-2 border-teal-300 {base_bubble_class}">
+                <div class="bubble bg-gray-200 border-l-2 border-teal-400 {BASE_BUBBLE_CLASS}" style="max-width:70%;">
                     {rendered_content}
                 </div>
             </div>
             """
         else:
-            # 사용자 말풍선: 오른쪽 정렬
+            # 사용자 말풍선: 오른쪽 정렬, 배경은 조금 더 밝은 회색
             messages_html += f"""
             <div class="chat-message user-message flex justify-end mb-4 items-start">
-                <div class="bubble bg-gray-50 border-r-2 border-gray-300 {base_bubble_class}">
+                <div class="bubble bg-gray-100 border-r-2 border-gray-300 {BASE_BUBBLE_CLASS}" style="max-width:70%;">
                     {rendered_content}
                 </div>
             </div>
             """
-
     return f"""
     <!DOCTYPE html>
     <html lang="ko">
@@ -98,7 +95,6 @@ def render_chat_interface(conversation) -> str:
         }}
         body {{
           font-family: 'Noto Sans KR', sans-serif;
-          /* 불교 사찰 풍경 이미지 (lighten 모드 유지) */
           background: url('https://source.unsplash.com/1600x900/?buddhism,temple') no-repeat center center;
           background-size: cover;
           background-color: rgba(246, 242, 235, 0.8);
@@ -161,7 +157,7 @@ def render_chat_interface(conversation) -> str:
     </head>
     <body class="h-full flex items-center justify-center">
       <div class="chat-container">
-        <!-- 헤더: 로고 이미지만 표시 -->
+        <!-- 헤더: 로고 이미지로만 구성 -->
         <div id="chat-header">
           <div class="flex items-center">
             <img 
@@ -190,7 +186,7 @@ def render_chat_interface(conversation) -> str:
           </form>
         </div>
 
-        <!-- 메시지 표시 영역 -->
+        <!-- 메시지 영역 -->
         <div id="chat-messages">
           {messages_html}
         </div>
@@ -258,16 +254,18 @@ def init_conversation(session_id: str):
         "항상 친근하고 예의바르게, 그 신문의 명예와 위상을 높이는 답변을 제공하며, "
         "사용자의 질문에 대해 상세하고 정확하게, 그리고 매우 호의적으로 응답합니다."
     )
+    # 초기 메시지에 줄바꿈을 추가
     initial_message = (
-        "모든 답은 당신 안에 있습니다. "
-        "저는 그 여정을 함께하는 현대불교신문 AI입니다. 무엇이 궁금하신가요?"
+        "모든 답은 당신 안에 있습니다.\n"
+        "저는 그 여정을 함께하는 현대불교신문 AI입니다.\n"
+        "무엇이 궁금하신가요?"
     )
     chat_session = client.chats.create(model="gemini-2.0-flash")
     conversation_store[session_id] = {
         "chat": chat_session,
         "messages": [
             {"role": "system", "content": system_message},
-            {"role": "assistant", "content": initial_message},
+            {"role": "assistant", "content": initial_message}
         ]
     }
 
@@ -303,14 +301,14 @@ async def message_init(
         
         user_message_html = f"""
         <div class="chat-message user-message flex justify-end mb-4 items-start animate-fadeIn">
-            <div class="bubble bg-gray-200 border-r-2 border-gray-400 {base_bubble_class if 'base_bubble_class' in globals() else ''}">
+            <div class="bubble bg-gray-100 border-r-2 border-gray-300 {BASE_BUBBLE_CLASS}" style="max-width:70%;">
                 {convert_newlines_to_br(message)}
             </div>
         </div>
         """
         placeholder_html = f"""
         <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
-            <div class="bubble bg-gray-100 border-l-2 border-teal-300 {base_bubble_class if 'base_bubble_class' in globals() else ''}"
+            <div class="bubble bg-gray-200 border-l-2 border-teal-400 {BASE_BUBBLE_CLASS}" style="max-width:70%;"
                  id="ai-msg-{placeholder_id}"
                  hx-get="/message?phase=answer&placeholder_id={placeholder_id}"
                  hx-trigger="load"
@@ -353,7 +351,7 @@ async def message_answer(
     
     final_ai_html = f"""
     <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
-        <div class="bubble bg-gray-100 border-l-2 border-teal-300 {base_bubble_class if 'base_bubble_class' in globals() else ''}">
+        <div class="bubble bg-gray-200 border-l-2 border-teal-400 {BASE_BUBBLE_CLASS}" style="max-width:70%;">
             {convert_newlines_to_br(ai_reply)}
         </div>
     </div>
