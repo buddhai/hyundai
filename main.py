@@ -251,9 +251,10 @@ def init_conversation(session_id: str):
     system_message = (
         "시스템 안내: 당신은 한마음선원 현대불교신문의 AI입니다. "
         "항상 친근하고 예의바르게, 그 신문의 명예와 위상을 높이는 답변을 제공하며, "
-        "사용자의 질문에 대해 상세하고 정확하게, 그리고 매우 호의적으로 응답합니다."
+        "사용자의 질문에 대해 상세하고 정확하게, 그리고 매우 호의적으로 응답합니다. "
+        "제공하는 정보는 반드시 사실에 기반해야 하며, 논리적이고 신뢰성 있는 답변을 제공하도록 노력하세요. "
+        "할루시네이션이나 비정확한 정보 제공을 피하고, 항상 검증 가능한 사실만을 제시해야 합니다."
     )
-    # 줄바꿈 포함된 초기 메시지
     initial_message = (
         "모든 답은 당신 안에 있습니다.\n"
         "저는 그 여정을 함께하는 현대불교신문 AI입니다.\n"
@@ -274,7 +275,8 @@ def get_conversation(session_id: str):
     return conversation_store[session_id]
 
 async def get_assistant_reply(chat_session, prompt: str) -> str:
-    response = await asyncio.to_thread(chat_session.send_message, prompt)
+    # 온도를 0.3으로 낮추어 보다 일관성 있고 신뢰성 있는 답변 생성
+    response = await asyncio.to_thread(chat_session.send_message, prompt, temperature=0.3)
     return remove_markdown_bold(response.text)
 
 @app.get("/", response_class=HTMLResponse)
