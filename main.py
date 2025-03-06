@@ -22,7 +22,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
 
-# 공식 가이드 방식으로 Gemini API 클라이언트 초기화
+# 공식 가이드 방식: Gemini API 클라이언트 초기화 및 도구 임포트
 from google import genai
 from google.genai import types
 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -33,9 +33,6 @@ app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 # 대화 기록 저장 (세션 별)
 conversation_store = {}
 BASE_BUBBLE_CLASS = "p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300 animate-fadeIn"
-
-def remove_citation_markers(text: str) -> str:
-    return re.sub(r'【\d+:\d+†source】', '', text)
 
 def remove_markdown_bold(text: str) -> str:
     text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
@@ -261,8 +258,8 @@ def get_conversation(session_id: str):
 def build_prompt(conversation) -> str:
     """
     대화 기록을 기반으로 프롬프트 문자열을 구성합니다.
-    각 메시지는 역할(label)과 함께 한 줄씩 추가됩니다.
-    마지막에 "Assistant:"를 붙여 AI 응답을 유도합니다.
+    각 메시지를 "System:", "User:", "Assistant:" 형식으로 이어붙이고,
+    마지막 줄에 "Assistant:"를 추가하여 응답 생성을 유도합니다.
     """
     prompt_lines = []
     for msg in conversation["messages"]:
@@ -278,14 +275,19 @@ def build_prompt(conversation) -> str:
 async def get_assistant_reply(conversation) -> str:
     prompt = build_prompt(conversation)
     try:
-        # 공식 가이드 방식의 generate_content 호출 (temperature=0.5 설정)
+        # Google 검색 그라운딩 도구 구성
+        google_search_tool = types.Tool(
+            google_search=types.GoogleSearch()
+        )
+        config = types.GenerateContentConfig(
+            tools=[google_search_tool],
+            response_modalities=["TEXT"]
+        )
         response = await asyncio.to_thread(
             client.models.generate_content,
             model='gemini-2.0-flash',
             contents=prompt,
-            config=types.GenerateContentConfig(
-                temperature=0.2
-            )
+            config=config
         )
         return remove_markdown_bold(response.text)
     except Exception as e:
@@ -296,7 +298,8 @@ async def get_assistant_reply(conversation) -> str:
 async def get_chat(request: Request):
     session_id = request.session.get("session_id", str(uuid.uuid4()))
     request.session["session_id"] = session_id
-    return HTMLResponse(content=render_chat_interface(get_conversation(session_id)))
+    conv = get_conversation(session_id)
+    return HTMLResponse(content=render_chat_interface(conv))
 
 @app.post("/message", response_class=HTMLResponse)
 async def message_init(
@@ -311,6 +314,7 @@ async def message_init(
     if phase == "init":
         conv["messages"].append({"role": "user", "content": message})
         placeholder_id = str(uuid.uuid4())
+        # 임시로 "답변 생성 중..." 메시지 추가
         conv["messages"].append({"role": "assistant", "content": "답변 생성 중..."})
         
         user_message_html = f"""
@@ -352,7 +356,7 @@ async def message_answer(
     conv = get_conversation(session_id)
     ai_reply = await get_assistant_reply(conv)
     
-    # 대화 기록에 AI 응답 추가
+    # 대화 기록에 AI 응답 업데이트
     if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
         conv["messages"][-1]["content"] = ai_reply
     else:
