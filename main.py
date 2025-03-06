@@ -291,18 +291,18 @@ async def get_assistant_reply(conversation) -> str:
         )
         initial_answer = remove_markdown_bold(response.text)
         
-        # 두 번째 단계: 답변을 친근하고 대화체로 재작성하도록 추가 호출
+        # 두 번째 단계: 불필요한 옵션이나 내부 설명 없이 최종 답변만 친근하고 대화체로 재작성
         rephrase_prompt = (
-            f"Please rewrite the following answer in a friendly and conversational tone in Korean:\n\n"
+            "Please rewrite the following answer in a friendly and conversational tone in Korean. "
+            "Only provide a single, concise final answer without any additional options, explanations, or breakdowns.\n\n"
             f"{initial_answer}\n\n"
-            f"답변:"
+            "답변:"
         )
         rephrase_response = await asyncio.to_thread(
             client.models.generate_content,
             model='gemini-2.0-flash',
             contents=rephrase_prompt,
             config=types.GenerateContentConfig(
-                # 추가 도구 없이 단순 재작성 요청
                 response_modalities=["TEXT"]
             )
         )
