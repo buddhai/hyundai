@@ -273,7 +273,7 @@ def build_prompt(conversation) -> str:
     return "\n".join(prompt_lines)
 
 # -------------------------------------------
-# 스트리밍 기능을 위한 새로운 함수 (streamGenerateContent 사용)
+# 스트리밍 기능(또는 동기식 fallback)을 위한 함수
 # -------------------------------------------
 from typing import AsyncGenerator
 
@@ -284,8 +284,41 @@ async def stream_get_assistant_reply(conversation) -> AsyncGenerator[str, None]:
         tools=[google_search_tool],
         response_modalities=["TEXT"]
     )
+
+    # 스트리밍 메서드 지원 여부 확인
+    if not hasattr(client.models, 'streamGenerateContent'):
+        logger.error("streamGenerateContent가 지원되지 않습니다. 동기식 generate_content로 대체합니다.")
+        # 동기식으로 초기 답변 생성
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model='gemini-2.0-flash',
+            contents=prompt,
+            config=config
+        )
+        initial_answer = remove_markdown_bold(response.text)
+        # 재작성 요청 (동기식)
+        rephrase_prompt = (
+            f"Please rewrite the following answer in a friendly and conversational tone in Korean:\n\n"
+            f"{initial_answer}\n\n"
+            f"답변:"
+        )
+        config_rephrase = types.GenerateContentConfig(
+            response_modalities=["TEXT"]
+        )
+        rephrase_response = await asyncio.to_thread(
+            client.models.generate_content,
+            model='gemini-2.0-flash',
+            contents=rephrase_prompt,
+            config=config_rephrase
+        )
+        final_answer = remove_markdown_bold(rephrase_response.text)
+        # 대화 기록 업데이트 후 전체 답변을 한 번에 전송
+        conversation["messages"][-1]["content"] = final_answer
+        yield final_answer
+        return
+
     try:
-        # 첫 번째 단계: 초기 답변 생성(스트리밍으로 토큰을 수집하지만 클라이언트에는 최종 재작성 결과만 전송)
+        # 첫 번째 단계: 스트리밍으로 초기 답변 생성
         initial_answer = ""
         stream_initial = await asyncio.to_thread(
             client.models.streamGenerateContent,
@@ -297,7 +330,7 @@ async def stream_get_assistant_reply(conversation) -> AsyncGenerator[str, None]:
             token_text = remove_markdown_bold(token_response.token)
             initial_answer += token_text
 
-        # 두 번째 단계: 친근하고 대화체로 재작성 (스트리밍)
+        # 두 번째 단계: 친근한 대화체 재작성 (스트리밍)
         rephrase_prompt = (
             f"Please rewrite the following answer in a friendly and conversational tone in Korean:\n\n"
             f"{initial_answer}\n\n"
@@ -317,7 +350,7 @@ async def stream_get_assistant_reply(conversation) -> AsyncGenerator[str, None]:
             token_text = remove_markdown_bold(token_response.token)
             final_answer += token_text
             yield token_text  # 클라이언트로 토큰 단위 스트리밍 전송
-        # 대화 기록에 최종 AI 응답 업데이트
+        # 대화 기록 업데이트
         conversation["messages"][-1]["content"] = final_answer
     except Exception as e:
         logger.error("Error in stream_generate_content: " + str(e))
@@ -372,7 +405,7 @@ async def message_init(
     
     return HTMLResponse("Invalid phase", status_code=400)
 
-# 스트리밍 응답을 위한 엔드포인트 수정 (phase=answer)
+# 스트리밍(또는 fallback) 응답을 위한 엔드포인트
 @app.get("/message", response_class=HTMLResponse)
 async def message_answer(
     request: Request,
