@@ -284,7 +284,7 @@ async def get_assistant_reply(conversation) -> str:
             model='gemini-2.0-flash',
             contents=prompt,
             config=types.GenerateContentConfig(
-                temperature=0.5
+                temperature=0.2
             )
         )
         return remove_markdown_bold(response.text)
