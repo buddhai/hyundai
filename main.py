@@ -265,10 +265,11 @@ def get_conversation(session_id: str):
 
 async def get_assistant_reply(chat_session, prompt: str) -> str:
     try:
+        # temperature 인자를 직접 전달합니다.
         response = await asyncio.to_thread(
             chat_session.send_message,
             prompt,
-            generation_config={"temperature": 0.7}
+            temperature=0.7
         )
         return remove_markdown_bold(response.text)
     except Exception as e:
