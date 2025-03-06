@@ -22,13 +22,15 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
 
-# Gemini API 클라이언트 초기화
+# 공식 가이드 방식으로 Gemini API 클라이언트 초기화
 from google import genai
+from google.genai import types
 client = genai.Client(api_key=GEMINI_API_KEY)
 
 app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 
+# 대화 기록 저장 (세션 별)
 conversation_store = {}
 BASE_BUBBLE_CLASS = "p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300 animate-fadeIn"
 
@@ -47,9 +49,9 @@ def convert_newlines_to_br(text: str) -> str:
 def render_chat_interface(conversation) -> str:
     messages_html = ""
     for msg in conversation["messages"]:
+        # 시스템 메시지는 UI에 출력하지 않습니다.
         if msg["role"] == "system":
             continue
-
         rendered_content = convert_newlines_to_br(msg["content"])
         if msg["role"] == "assistant":
             messages_html += f"""
@@ -67,7 +69,6 @@ def render_chat_interface(conversation) -> str:
                 </div>
             </div>
             """
-
     return f"""
     <!DOCTYPE html>
     <html lang="ko">
@@ -147,7 +148,6 @@ def render_chat_interface(conversation) -> str:
     </head>
     <body class="h-full flex items-center justify-center">
       <div class="chat-container">
-        <!-- 헤더: 로고 이미지 및 재시작 버튼 -->
         <div id="chat-header">
           <div class="flex items-center">
             <img 
@@ -174,11 +174,9 @@ def render_chat_interface(conversation) -> str:
             </button>
           </form>
         </div>
-        <!-- 메시지 영역 -->
         <div id="chat-messages">
           {messages_html}
         </div>
-        <!-- 입력창 -->
         <div id="chat-input">
           <form id="chat-form"
                 hx-post="/message?phase=init"
@@ -247,17 +245,8 @@ def init_conversation(session_id: str):
         "저는 그 여정을 함께하는 현대불교신문 AI입니다.\n"
         "무엇이 궁금하신가요?"
     )
-    try:
-        # 생성 시에 generation_config 인자로 temperature를 설정합니다.
-        chat_session = client.chats.create(
-            model="gemini-2.0-flash",
-            generation_config={"temperature": 0.7}
-        )
-    except Exception as e:
-        logger.error("Error creating chat session: " + str(e))
-        raise
+    # 대화 기록 초기화
     conversation_store[session_id] = {
-        "chat": chat_session,
         "messages": [
             {"role": "system", "content": system_message},
             {"role": "assistant", "content": initial_message}
@@ -269,13 +258,38 @@ def get_conversation(session_id: str):
         init_conversation(session_id)
     return conversation_store[session_id]
 
-async def get_assistant_reply(chat_session, prompt: str) -> str:
+def build_prompt(conversation) -> str:
+    """
+    대화 기록을 기반으로 프롬프트 문자열을 구성합니다.
+    각 메시지는 역할(label)과 함께 한 줄씩 추가됩니다.
+    마지막에 "Assistant:"를 붙여 AI 응답을 유도합니다.
+    """
+    prompt_lines = []
+    for msg in conversation["messages"]:
+        if msg["role"] == "system":
+            prompt_lines.append("System: " + msg["content"])
+        elif msg["role"] == "user":
+            prompt_lines.append("User: " + msg["content"])
+        elif msg["role"] == "assistant":
+            prompt_lines.append("Assistant: " + msg["content"])
+    prompt_lines.append("Assistant:")
+    return "\n".join(prompt_lines)
+
+async def get_assistant_reply(conversation) -> str:
+    prompt = build_prompt(conversation)
     try:
-        # send_message 호출 시에는 추가 파라미터 없이 호출합니다.
-        response = await asyncio.to_thread(chat_session.send_message, prompt)
+        # 공식 가이드 방식의 generate_content 호출 (temperature=0.5 설정)
+        response = await asyncio.to_thread(
+            client.models.generate_content,
+            model='gemini-2.0-flash',
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=0.5
+            )
+        )
         return remove_markdown_bold(response.text)
     except Exception as e:
-        logger.error("Error in send_message: " + str(e))
+        logger.error("Error in generate_content: " + str(e))
         return "죄송합니다. 답변 생성 중 오류가 발생했습니다."
 
 @app.get("/", response_class=HTMLResponse)
@@ -336,14 +350,9 @@ async def message_answer(
         return HTMLResponse("Session not found", status_code=400)
     
     conv = get_conversation(session_id)
-    user_messages = [m for m in conv["messages"] if m["role"] == "user"]
-    if not user_messages:
-        return HTMLResponse("No user message found", status_code=400)
+    ai_reply = await get_assistant_reply(conv)
     
-    last_user_message = user_messages[-1]["content"]
-    chat_session = conv["chat"]
-    ai_reply = await get_assistant_reply(chat_session, last_user_message)
-    
+    # 대화 기록에 AI 응답 추가
     if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
         conv["messages"][-1]["content"] = ai_reply
     else:
