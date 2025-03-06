@@ -291,10 +291,10 @@ async def get_assistant_reply(conversation) -> str:
         )
         initial_answer = remove_markdown_bold(response.text)
         
-        # 두 번째 단계: 한 가지 최종 답변만, 그러나 좀 더 "자세하게" 대화체로 재작성
+        # 두 번째 단계: 옵션이나 내부 설명 없이 평범한 챗봇 답변 정도의 균형 잡힌 최종 답변으로 재작성
         rephrase_prompt = (
             "Please rewrite the following answer in a friendly and conversational tone in Korean. "
-            "Provide a single, detailed final answer without multiple options or breakdowns.\n\n"
+            "Provide a single final answer that is balanced in length—not too brief and not overly detailed—similar to a normal chatbot response.\n\n"
             f"{initial_answer}\n\n"
             "답변:"
         )
