@@ -7,7 +7,7 @@ import uvicorn
 import html
 
 from fastapi import FastAPI, Request, Form, Query
-from fastapi.responses import HTMLResponse, RedirectResponse, StreamingResponse
+from fastapi.responses import HTMLResponse, RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 
@@ -272,23 +272,17 @@ def build_prompt(conversation) -> str:
     prompt_lines.append("Assistant:")
     return "\n".join(prompt_lines)
 
-# -------------------------------------------
-# 스트리밍 기능(또는 동기식 fallback)을 위한 함수
-# -------------------------------------------
-from typing import AsyncGenerator
-
-async def stream_get_assistant_reply(conversation) -> AsyncGenerator[str, None]:
+async def get_assistant_reply(conversation) -> str:
     prompt = build_prompt(conversation)
-    google_search_tool = types.Tool(google_search=types.GoogleSearch())
-    config = types.GenerateContentConfig(
-        tools=[google_search_tool],
-        response_modalities=["TEXT"]
-    )
-
-    # 스트리밍 메서드 지원 여부 확인
-    if not hasattr(client.models, 'streamGenerateContent'):
-        logger.error("streamGenerateContent가 지원되지 않습니다. 동기식 generate_content로 대체합니다.")
-        # 동기식으로 초기 답변 생성
+    try:
+        # 첫 번째 단계: Google 검색 그라운딩 도구 구성하여 사실 기반 답변 생성
+        google_search_tool = types.Tool(
+            google_search=types.GoogleSearch()
+        )
+        config = types.GenerateContentConfig(
+            tools=[google_search_tool],
+            response_modalities=["TEXT"]
+        )
         response = await asyncio.to_thread(
             client.models.generate_content,
             model='gemini-2.0-flash',
@@ -296,69 +290,28 @@ async def stream_get_assistant_reply(conversation) -> AsyncGenerator[str, None]:
             config=config
         )
         initial_answer = remove_markdown_bold(response.text)
-        # 재작성 요청 (동기식)
+        
+        # 두 번째 단계: 답변을 친근하고 대화체로 재작성하도록 추가 호출
         rephrase_prompt = (
             f"Please rewrite the following answer in a friendly and conversational tone in Korean:\n\n"
             f"{initial_answer}\n\n"
             f"답변:"
-        )
-        config_rephrase = types.GenerateContentConfig(
-            response_modalities=["TEXT"]
         )
         rephrase_response = await asyncio.to_thread(
             client.models.generate_content,
             model='gemini-2.0-flash',
             contents=rephrase_prompt,
-            config=config_rephrase
+            config=types.GenerateContentConfig(
+                # 추가 도구 없이 단순 재작성 요청
+                response_modalities=["TEXT"]
+            )
         )
         final_answer = remove_markdown_bold(rephrase_response.text)
-        # 대화 기록 업데이트 후 전체 답변을 한 번에 전송
-        conversation["messages"][-1]["content"] = final_answer
-        yield final_answer
-        return
-
-    try:
-        # 첫 번째 단계: 스트리밍으로 초기 답변 생성
-        initial_answer = ""
-        stream_initial = await asyncio.to_thread(
-            client.models.streamGenerateContent,
-            model='gemini-2.0-flash',
-            contents=prompt,
-            config=config
-        )
-        async for token_response in stream_initial:
-            token_text = remove_markdown_bold(token_response.token)
-            initial_answer += token_text
-
-        # 두 번째 단계: 친근한 대화체 재작성 (스트리밍)
-        rephrase_prompt = (
-            f"Please rewrite the following answer in a friendly and conversational tone in Korean:\n\n"
-            f"{initial_answer}\n\n"
-            f"답변:"
-        )
-        config_rephrase = types.GenerateContentConfig(
-            response_modalities=["TEXT"]
-        )
-        stream_rephrase = await asyncio.to_thread(
-            client.models.streamGenerateContent,
-            model='gemini-2.0-flash',
-            contents=rephrase_prompt,
-            config=config_rephrase
-        )
-        final_answer = ""
-        async for token_response in stream_rephrase:
-            token_text = remove_markdown_bold(token_response.token)
-            final_answer += token_text
-            yield token_text  # 클라이언트로 토큰 단위 스트리밍 전송
-        # 대화 기록 업데이트
-        conversation["messages"][-1]["content"] = final_answer
+        return final_answer
     except Exception as e:
-        logger.error("Error in stream_generate_content: " + str(e))
-        yield "죄송합니다. 답변 생성 중 오류가 발생했습니다."
+        logger.error("Error in generate_content: " + str(e))
+        return "죄송합니다. 답변 생성 중 오류가 발생했습니다."
 
-# -------------------------------------------
-# 기존 엔드포인트
-# -------------------------------------------
 @app.get("/", response_class=HTMLResponse)
 async def get_chat(request: Request):
     session_id = request.session.get("session_id", str(uuid.uuid4()))
@@ -378,6 +331,7 @@ async def message_init(
     
     if phase == "init":
         conv["messages"].append({"role": "user", "content": message})
+        placeholder_id = str(uuid.uuid4())
         # 임시 메시지 추가
         conv["messages"].append({"role": "assistant", "content": "답변 생성 중..."})
         
@@ -388,7 +342,6 @@ async def message_init(
             </div>
         </div>
         """
-        placeholder_id = str(uuid.uuid4())
         placeholder_html = f"""
         <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
             <div class="bubble bg-gray-200 border-l-2 border-teal-400 {BASE_BUBBLE_CLASS}" style="max-width:70%;"
@@ -405,7 +358,6 @@ async def message_init(
     
     return HTMLResponse("Invalid phase", status_code=400)
 
-# 스트리밍(또는 fallback) 응답을 위한 엔드포인트
 @app.get("/message", response_class=HTMLResponse)
 async def message_answer(
     request: Request,
@@ -420,16 +372,22 @@ async def message_answer(
         return HTMLResponse("Session not found", status_code=400)
     
     conv = get_conversation(session_id)
+    ai_reply = await get_assistant_reply(conv)
     
-    async def stream_response_generator():
-        # HTML 래퍼 오프닝
-        yield f'<div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}"><div class="bubble bg-gray-200 border-l-2 border-teal-400 {BASE_BUBBLE_CLASS}" style="max-width:70%;">'
-        async for token in stream_get_assistant_reply(conv):
-            yield convert_newlines_to_br(token)
-        # HTML 래퍼 클로징
-        yield "</div></div>"
+    # 대화 기록에 AI 응답 업데이트
+    if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
+        conv["messages"][-1]["content"] = ai_reply
+    else:
+        conv["messages"].append({"role": "assistant", "content": ai_reply})
     
-    return StreamingResponse(stream_response_generator(), media_type="text/html")
+    final_ai_html = f"""
+    <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
+        <div class="bubble bg-gray-200 border-l-2 border-teal-400 {BASE_BUBBLE_CLASS}" style="max-width:70%;">
+            {convert_newlines_to_br(ai_reply)}
+        </div>
+    </div>
+    """
+    return HTMLResponse(content=final_ai_html)
 
 @app.get("/reset")
 async def reset_conversation(request: Request):
