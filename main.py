@@ -30,7 +30,6 @@ app = FastAPI()
 app.add_middleware(SessionMiddleware, secret_key="your-secret-key")
 
 conversation_store = {}
-
 BASE_BUBBLE_CLASS = "p-4 md:p-3 rounded-2xl shadow-md transition-all duration-300 animate-fadeIn"
 
 def remove_citation_markers(text: str) -> str:
@@ -148,6 +147,7 @@ def render_chat_interface(conversation) -> str:
     </head>
     <body class="h-full flex items-center justify-center">
       <div class="chat-container">
+        <!-- 헤더: 로고 이미지 및 재시작 버튼 -->
         <div id="chat-header">
           <div class="flex items-center">
             <img 
@@ -174,9 +174,11 @@ def render_chat_interface(conversation) -> str:
             </button>
           </form>
         </div>
+        <!-- 메시지 영역 -->
         <div id="chat-messages">
           {messages_html}
         </div>
+        <!-- 입력창 -->
         <div id="chat-input">
           <form id="chat-form"
                 hx-post="/message?phase=init"
@@ -246,7 +248,11 @@ def init_conversation(session_id: str):
         "무엇이 궁금하신가요?"
     )
     try:
-        chat_session = client.chats.create(model="gemini-2.0-flash")
+        # 생성 시에 generation_config 인자로 temperature를 설정합니다.
+        chat_session = client.chats.create(
+            model="gemini-2.0-flash",
+            generation_config={"temperature": 0.7}
+        )
     except Exception as e:
         logger.error("Error creating chat session: " + str(e))
         raise
@@ -265,12 +271,8 @@ def get_conversation(session_id: str):
 
 async def get_assistant_reply(chat_session, prompt: str) -> str:
     try:
-        # temperature 인자를 직접 전달합니다.
-        response = await asyncio.to_thread(
-            chat_session.send_message,
-            prompt,
-            temperature=0.7
-        )
+        # send_message 호출 시에는 추가 파라미터 없이 호출합니다.
+        response = await asyncio.to_thread(chat_session.send_message, prompt)
         return remove_markdown_bold(response.text)
     except Exception as e:
         logger.error("Error in send_message: " + str(e))
