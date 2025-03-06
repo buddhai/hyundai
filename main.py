@@ -22,7 +22,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
 
-# 공식 가이드 방식: Gemini API 클라이언트 초기화 및 도구 임포트
+# Gemini API 클라이언트 초기화 및 도구 임포트 (공식 가이드 방식)
 from google import genai
 from google.genai import types
 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -275,7 +275,7 @@ def build_prompt(conversation) -> str:
 async def get_assistant_reply(conversation) -> str:
     prompt = build_prompt(conversation)
     try:
-        # Google 검색 그라운딩 도구 구성
+        # 첫 번째 단계: Google 검색 그라운딩 도구 구성하여 사실 기반 답변 생성
         google_search_tool = types.Tool(
             google_search=types.GoogleSearch()
         )
@@ -289,7 +289,25 @@ async def get_assistant_reply(conversation) -> str:
             contents=prompt,
             config=config
         )
-        return remove_markdown_bold(response.text)
+        initial_answer = remove_markdown_bold(response.text)
+        
+        # 두 번째 단계: 답변을 친근하고 대화체로 재작성하도록 추가 호출
+        rephrase_prompt = (
+            f"Please rewrite the following answer in a friendly and conversational tone in Korean:\n\n"
+            f"{initial_answer}\n\n"
+            f"답변:"
+        )
+        rephrase_response = await asyncio.to_thread(
+            client.models.generate_content,
+            model='gemini-2.0-flash',
+            contents=rephrase_prompt,
+            config=types.GenerateContentConfig(
+                # 추가 도구 없이 단순 재작성 요청
+                response_modalities=["TEXT"]
+            )
+        )
+        final_answer = remove_markdown_bold(rephrase_response.text)
+        return final_answer
     except Exception as e:
         logger.error("Error in generate_content: " + str(e))
         return "죄송합니다. 답변 생성 중 오류가 발생했습니다."
@@ -314,7 +332,7 @@ async def message_init(
     if phase == "init":
         conv["messages"].append({"role": "user", "content": message})
         placeholder_id = str(uuid.uuid4())
-        # 임시로 "답변 생성 중..." 메시지 추가
+        # 임시 메시지 추가
         conv["messages"].append({"role": "assistant", "content": "답변 생성 중..."})
         
         user_message_html = f"""
