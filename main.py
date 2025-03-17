@@ -22,7 +22,7 @@ GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 if not GEMINI_API_KEY:
     logger.error("GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
 
-# Gemini API 클라이언트 초기화 및 도구 임포트 (공식 가이드 방식)
+# Gemini API 클라이언트 초기화
 from google import genai
 from google.genai import types
 client = genai.Client(api_key=GEMINI_API_KEY)
@@ -46,7 +46,7 @@ def convert_newlines_to_br(text: str) -> str:
 def render_chat_interface(conversation) -> str:
     messages_html = ""
     for msg in conversation["messages"]:
-        # 시스템 메시지는 UI에 출력하지 않습니다.
+        # 시스템 메시지는 UI에 출력하지 않음
         if msg["role"] == "system":
             continue
         rendered_content = convert_newlines_to_br(msg["content"])
@@ -66,6 +66,7 @@ def render_chat_interface(conversation) -> str:
                 </div>
             </div>
             """
+
     return f"""
     <!DOCTYPE html>
     <html lang="ko">
@@ -108,22 +109,24 @@ def render_chat_interface(conversation) -> str:
           overflow: hidden;
           border: 1px solid rgba(255,255,255,0.3);
         }}
+        /* 헤더 높이를 80px로 늘려서 안내 문구가 들어갈 공간 확보 */
         #chat-header {{
           position: absolute;
           top: 0;
           left: 0; right: 0;
-          height: 60px;
+          height: 80px;
           background-color: rgba(255, 255, 255, 0.6);
           backdrop-filter: blur(6px);
           display: flex;
-          align-items: center;
+          flex-direction: column;
           justify-content: space-between;
-          padding: 0 1rem;
+          padding: 0.5rem 1rem;
           border-bottom: 1px solid rgba(255,255,255,0.3);
         }}
+        /* 채팅 메시지 영역 시작을 80px로 조정 */
         #chat-messages {{
           position: absolute;
-          top: 60px;
+          top: 80px;
           bottom: 70px;
           left: 0; right: 0;
           overflow-y: auto;
@@ -146,30 +149,35 @@ def render_chat_interface(conversation) -> str:
     <body class="h-full flex items-center justify-center">
       <div class="chat-container">
         <div id="chat-header">
-          <div class="flex items-center">
+          <!-- 상단부(로고 + 리셋 버튼) -->
+          <div class="flex items-center justify-between">
             <img 
               src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo5.png"
               alt="현대불교 로고"
               class="h-10"
             />
+            <form action="/reset" method="get" class="flex justify-end">
+              <button class="
+                bg-gradient-to-r from-gray-900 to-gray-700
+                hover:from-gray-700 hover:to-gray-900
+                text-white
+                py-2 px-4 sm:py-1 sm:px-2
+                rounded-full
+                border-0
+                shadow-md
+                hover:shadow-xl
+                transition-all
+                duration-300
+                flex items-center
+              ">
+                ↻
+              </button>
+            </form>
           </div>
-          <form action="/reset" method="get" class="flex justify-end">
-            <button class="
-              bg-gradient-to-r from-gray-900 to-gray-700
-              hover:from-gray-700 hover:to-gray-900
-              text-white
-              py-2 px-4 sm:py-1 sm:px-2
-              rounded-full
-              border-0
-              shadow-md
-              hover:shadow-xl
-              transition-all
-              duration-300
-              flex items-center
-            ">
-              ↻
-            </button>
-          </form>
+          <!-- 안내 문구 (상단부 하단 영역) -->
+          <div class="text-gray-500 text-xs text-center mt-1">
+            현대불교신문 AI는 실수를 할 수 있습니다. 중요한 정보는 재차 확인하세요.
+          </div>
         </div>
         <div id="chat-messages">
           {messages_html}
@@ -213,10 +221,6 @@ def render_chat_interface(conversation) -> str:
               →
             </button>
           </form>
-        </div>
-        <!-- 추가 안내 문구 (회색, 작게) -->
-        <div class="absolute bottom-2 w-full text-center text-gray-500 text-xs">
-          현대불교신문 AI는 실수를 할 수 있습니다. 중요한 정보는 재차 확인하세요.
         </div>
       </div>
       <script>
@@ -279,7 +283,7 @@ def build_prompt(conversation) -> str:
 async def get_assistant_reply(conversation) -> str:
     prompt = build_prompt(conversation)
     try:
-        # 첫 번째 단계: Google 검색 그라운딩 도구 구성하여 사실 기반 답변 생성
+        # 1) Google 검색 그라운딩 도구 구성하여 사실 기반 답변 생성
         google_search_tool = types.Tool(
             google_search=types.GoogleSearch()
         )
@@ -295,7 +299,7 @@ async def get_assistant_reply(conversation) -> str:
         )
         initial_answer = remove_markdown_bold(response.text)
         
-        # 두 번째 단계: 옵션이나 내부 설명 없이 평범한 챗봇 답변 정도의 균형 잡힌 최종 답변으로 재작성
+        # 2) 최종 답변으로 부드럽게 재작성
         rephrase_prompt = (
             "Please rewrite the following answer in a friendly and conversational tone in Korean. "
             "Provide a single final answer that is balanced in length—not too brief and not overly detailed—similar to a normal chatbot response.\n\n"
