@@ -158,13 +158,12 @@ def render_chat_interface(conversation) -> str:
               alt="현대불교 로고"
               class="h-10"
             />
-            <!-- 새로고침 버튼 (크기 키움) -->
             <form action="/reset" method="get" class="flex justify-end">
               <button class="
                 bg-gradient-to-r from-gray-900 to-gray-700
                 hover:from-gray-700 hover:to-gray-900
                 text-white
-                py-3 px-5
+                py-2 px-4
                 rounded-full
                 border-0
                 shadow-md
@@ -192,6 +191,7 @@ def render_chat_interface(conversation) -> str:
                 hx-swap="beforeend"
                 onsubmit="setTimeout(() => this.reset(), 0)"
                 class="flex w-full">
+            <!-- 왼쪽만 둥글게, 오른쪽은 안 둥글게 -->
             <input type="text"
                    name="message"
                    placeholder="메시지"
@@ -207,14 +207,14 @@ def render_chat_interface(conversation) -> str:
                      text-gray-700
                    "
                    required />
-            <!-- 전송 버튼 (화살표) 크기 키움 -->
+            <!-- 오른쪽만 둥글게, 왼쪽은 안 둥글게 + 크게 보이도록 패딩 조정 -->
             <button type="submit"
                     class="
                       bg-gradient-to-r from-gray-900 to-gray-700
                       hover:from-gray-700 hover:to-gray-900
                       text-white
                       py-3 px-5
-                      rounded-full
+                      rounded-r-full
                       border-0
                       shadow-md
                       hover:shadow-xl
