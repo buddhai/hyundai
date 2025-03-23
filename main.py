@@ -136,8 +136,8 @@ def render_chat_interface(conversation) -> str:
         #chat-input {{
           position: absolute;
           bottom: 0;
-          left: 0.5rem;   /* 기존 0에서 0.5rem으로 */
-          right: 0.5rem;  /* 기존 0에서 0.5rem으로 */
+          left: 0.5rem;
+          right: 0.5rem;
           height: 70px;
           background-color: rgba(255, 255, 255, 0.6);
           backdrop-filter: blur(6px);
@@ -159,11 +159,13 @@ def render_chat_interface(conversation) -> str:
               class="h-10"
             />
             <form action="/reset" method="get" class="flex justify-end">
+              <!-- 여기서 버튼이 화면 넓어질수록 커지도록 수정 -->
               <button class="
                 bg-gradient-to-r from-gray-900 to-gray-700
                 hover:from-gray-700 hover:to-gray-900
                 text-white
-                py-2 px-4 sm:py-1 sm:px-2
+                py-1 px-2
+                sm:py-2 sm:px-4
                 rounded-full
                 border-0
                 shadow-md
@@ -206,12 +208,14 @@ def render_chat_interface(conversation) -> str:
                      text-gray-700
                    "
                    required />
+            <!-- 여기서도 버튼이 화면 넓어질수록 커지도록 수정 -->
             <button type="submit"
                     class="
                       bg-gradient-to-r from-gray-900 to-gray-700
                       hover:from-gray-700 hover:to-gray-900
                       text-white
-                      py-2 px-4 sm:py-1 sm:px-2
+                      py-1 px-2
+                      sm:py-2 sm:px-4
                       rounded-r-full
                       border-0
                       shadow-md
