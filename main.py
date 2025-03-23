@@ -245,7 +245,7 @@ def render_chat_interface(conversation) -> str:
 
 def init_conversation(session_id: str):
     system_message = (
-        "시스템 안내: 당신은 한마음선원 현대불교신문의 Ai입니다. "
+        "시스템 안내: 당신은 현대불교신문의 Ai입니다. "
         "항상 친근하고 예의바르게, 그 신문의 명예와 위상을 높이는 답변을 제공하며, "
         "사용자의 질문에 대해 상세하고 정확하게, 그리고 매우 호의적으로 응답합니다."
     )
