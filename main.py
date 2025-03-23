@@ -176,7 +176,7 @@ def render_chat_interface(conversation) -> str:
           </div>
           <!-- 안내 문구 (상단부 하단 영역) -->
           <div class="text-gray-500 text-xs text-center mt-1">
-            현대불교신문 상담Ai는 실수를 할 수 있습니다. 다소 부정확한 답변이 있어도 양해바랍니다.
+            현대불교신문 상담Ai는 실수를 할 수 있습니다.<br class="block md:hidden">다소 부정확한 답변이 있어도 양해바랍니다.
           </div>
         </div>
         <div id="chat-messages">
@@ -245,10 +245,11 @@ def init_conversation(session_id: str):
         "항상 친근하고 예의바르게, 그 신문의 명예와 위상을 높이는 답변을 제공하며, "
         "사용자의 질문에 대해 상세하고 정확하게, 그리고 매우 호의적으로 응답합니다."
     )
+    # 첫 메시지: "모든 답은 당신 안에 있습니다. 무엇이 궁금하신가요?"는 한 줄에, 
+    # "저는 그 여정을 함께하는 현대불교신문 상담Ai입니다."는 별도 줄로 표시
     initial_message = (
-        "모든 답은 당신 안에 있습니다.\n"
-        "저는 그 여정을 함께하는 현대불교신문 상담Ai입니다.\n"
-        "무엇이 궁금하신가요?"
+        "모든 답은 당신 안에 있습니다. 무엇이 궁금하신가요?\n"
+        "저는 그 여정을 함께하는 현대불교신문 상담Ai입니다."
     )
     # 대화 기록 초기화
     conversation_store[session_id] = {
