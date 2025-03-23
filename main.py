@@ -73,7 +73,7 @@ def render_chat_interface(conversation) -> str:
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>현대불교신문 Ai</title>
+      <title>현대불교신문 상담Ai</title>
       <!-- HTMX -->
       <script src="https://unpkg.com/htmx.org@1.7.0"></script>
       <!-- Tailwind CSS -->
@@ -158,14 +158,13 @@ def render_chat_interface(conversation) -> str:
               alt="현대불교 로고"
               class="h-10"
             />
+            <!-- 새로고침 버튼 (크기 키움) -->
             <form action="/reset" method="get" class="flex justify-end">
-              <!-- 여기서 버튼이 화면 넓어질수록 커지도록 수정 -->
               <button class="
                 bg-gradient-to-r from-gray-900 to-gray-700
                 hover:from-gray-700 hover:to-gray-900
                 text-white
-                py-1 px-2
-                sm:py-2 sm:px-4
+                py-3 px-5
                 rounded-full
                 border-0
                 shadow-md
@@ -208,15 +207,14 @@ def render_chat_interface(conversation) -> str:
                      text-gray-700
                    "
                    required />
-            <!-- 여기서도 버튼이 화면 넓어질수록 커지도록 수정 -->
+            <!-- 전송 버튼 (화살표) 크기 키움 -->
             <button type="submit"
                     class="
                       bg-gradient-to-r from-gray-900 to-gray-700
                       hover:from-gray-700 hover:to-gray-900
                       text-white
-                      py-1 px-2
-                      sm:py-2 sm:px-4
-                      rounded-r-full
+                      py-3 px-5
+                      rounded-full
                       border-0
                       shadow-md
                       hover:shadow-xl
