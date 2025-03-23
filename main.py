@@ -73,7 +73,7 @@ def render_chat_interface(conversation) -> str:
     <head>
       <meta charset="UTF-8" />
       <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-      <title>현대불교신문 AI</title>
+      <title>현대불교신문 Ai</title>
       <!-- HTMX -->
       <script src="https://unpkg.com/htmx.org@1.7.0"></script>
       <!-- Tailwind CSS -->
@@ -152,7 +152,7 @@ def render_chat_interface(conversation) -> str:
           <!-- 상단부(로고 + 리셋 버튼) -->
           <div class="flex items-center justify-between">
             <img 
-              src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo5.png"
+              src="https://raw.githubusercontent.com/buddhai/hyundai/master/image6.png"
               alt="현대불교 로고"
               class="h-10"
             />
@@ -176,7 +176,7 @@ def render_chat_interface(conversation) -> str:
           </div>
           <!-- 안내 문구 (상단부 하단 영역) -->
           <div class="text-gray-500 text-xs text-center mt-1">
-            현대불교신문 AI는 실수를 할 수 있습니다. 중요한 정보는 재차 확인하세요.
+            현대불교신문 상담Ai는 실수를 할 수 있습니다. 다소 부정확한 답변이 있어도 양해바랍니다.
           </div>
         </div>
         <div id="chat-messages">
@@ -218,7 +218,7 @@ def render_chat_interface(conversation) -> str:
                       duration-300
                       flex items-center
                     ">
-              →
+              >
             </button>
           </form>
         </div>
@@ -241,13 +241,13 @@ def render_chat_interface(conversation) -> str:
 
 def init_conversation(session_id: str):
     system_message = (
-        "시스템 안내: 당신은 한마음선원 현대불교신문의 AI입니다. "
+        "시스템 안내: 당신은 한마음선원 현대불교신문의 Ai입니다. "
         "항상 친근하고 예의바르게, 그 신문의 명예와 위상을 높이는 답변을 제공하며, "
         "사용자의 질문에 대해 상세하고 정확하게, 그리고 매우 호의적으로 응답합니다."
     )
     initial_message = (
         "모든 답은 당신 안에 있습니다.\n"
-        "저는 그 여정을 함께하는 현대불교신문 AI입니다.\n"
+        "저는 그 여정을 함께하는 현대불교신문 상담Ai입니다.\n"
         "무엇이 궁금하신가요?"
     )
     # 대화 기록 초기화
@@ -382,7 +382,7 @@ async def message_answer(
     conv = get_conversation(session_id)
     ai_reply = await get_assistant_reply(conv)
     
-    # 대화 기록에 AI 응답 업데이트
+    # 대화 기록에 Ai 응답 업데이트
     if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
         conv["messages"][-1]["content"] = ai_reply
     else:
