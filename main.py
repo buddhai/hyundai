@@ -132,10 +132,12 @@ def render_chat_interface(conversation) -> str:
           overflow-y: auto;
           padding: 1rem;
         }}
+        /* 하단 입력 영역에서 좌우가 잘리지 않도록 left/right에 여백을 줌 */
         #chat-input {{
           position: absolute;
           bottom: 0;
-          left: 0; right: 0;
+          left: 0.5rem;   /* 기존 0에서 0.5rem으로 */
+          right: 0.5rem;  /* 기존 0에서 0.5rem으로 */
           height: 70px;
           background-color: rgba(255, 255, 255, 0.6);
           backdrop-filter: blur(6px);
@@ -245,7 +247,6 @@ def init_conversation(session_id: str):
         "항상 친근하고 예의바르게, 그 신문의 명예와 위상을 높이는 답변을 제공하며, "
         "사용자의 질문에 대해 상세하고 정확하게, 그리고 매우 호의적으로 응답합니다."
     )
-    # 변경된 첫 메시지
     initial_message = (
         "모든 답은 당신 안에 있습니다. 저는 그 여정을 함께하는\n"
         "현대불교신문 상담Ai입니다.\n"
