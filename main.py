@@ -157,7 +157,7 @@ def render_chat_interface(conversation) -> str:
           <div class="flex items-center justify-between w-full">
             <!-- 로고(이미지) -->
             <img 
-              src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo7.png"
+              src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo8.png"
               alt="현대불교신문 Ai상담봇 해심이 로고"
               class="h-10"
             />
