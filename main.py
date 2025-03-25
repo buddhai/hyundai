@@ -109,24 +109,25 @@ def render_chat_interface(conversation) -> str:
           overflow: hidden;
           border: 1px solid rgba(255,255,255,0.3);
         }}
-        /* 헤더 높이를 80px로 늘려서 안내 문구가 들어갈 공간 확보 */
+        /* 상단 영역 높이를 140px로 늘려 넉넉한 간격 확보 */
         #chat-header {{
           position: absolute;
           top: 0;
           left: 0; right: 0;
-          height: 80px;
+          height: 140px;
           background-color: rgba(255, 255, 255, 0.6);
           backdrop-filter: blur(6px);
           display: flex;
           flex-direction: column;
-          justify-content: space-between;
+          align-items: center;
+          justify-content: center;
           padding: 0.5rem 1rem;
           border-bottom: 1px solid rgba(255,255,255,0.3);
         }}
-        /* 채팅 메시지 영역 시작을 80px로 조정 */
+        /* 채팅 메시지 영역 시작점을 140px로 변경 */
         #chat-messages {{
           position: absolute;
-          top: 80px;
+          top: 140px;
           bottom: 70px;
           left: 0; right: 0;
           overflow-y: auto;
@@ -150,14 +151,17 @@ def render_chat_interface(conversation) -> str:
     </head>
     <body class="h-full flex items-center justify-center">
       <div class="chat-container">
+        <!-- 상단 영역: 로고 + 안내문구 + 리셋버튼 -->
         <div id="chat-header">
-          <!-- 상단부(로고 + 리셋 버튼) -->
-          <div class="flex items-center justify-between">
+          <!-- 로고+리셋 버튼 한 줄 배치 -->
+          <div class="flex items-center justify-between w-full">
+            <!-- 로고(이미지) -->
             <img 
-              src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo6.png"
-              alt="현대불교 로고"
+              src="https://raw.githubusercontent.com/buddhai/hyundai/master/image6.png"
+              alt="현대불교신문 Ai상담봇 해심이 로고"
               class="h-10"
             />
+            <!-- 새로고침 버튼 -->
             <form action="/reset" method="get" class="flex justify-end">
               <button class="
                 bg-gradient-to-r from-gray-900 to-gray-700
@@ -176,14 +180,19 @@ def render_chat_interface(conversation) -> str:
               </button>
             </form>
           </div>
-          <!-- 안내 문구 (상단부 하단 영역) -->
-          <div class="text-gray-500 text-xs text-center mt-1">
-            현대불교신문 상담Ai는 실수를 할 수 있습니다.<br class="block md:hidden">다소 부정확한 답변이 있어도 양해바랍니다.
+          <!-- 안내 문구(두 줄) -->
+          <div class="text-gray-500 text-xs text-center mt-2">
+            현대불교신문 상담Ai는 실수를 할 수 있습니다.<br class="block md:hidden">
+            다소 부정확한 답변이 있어도 양해바랍니다.
           </div>
         </div>
+
+        <!-- 채팅 메시지 영역 -->
         <div id="chat-messages">
           {messages_html}
         </div>
+
+        <!-- 하단 입력창 -->
         <div id="chat-input">
           <form id="chat-form"
                 hx-post="/message?phase=init"
@@ -191,7 +200,7 @@ def render_chat_interface(conversation) -> str:
                 hx-swap="beforeend"
                 onsubmit="setTimeout(() => this.reset(), 0)"
                 class="flex w-full">
-            <!-- 왼쪽만 둥글게, 오른쪽은 안 둥글게 -->
+            <!-- 왼쪽만 둥글게 -->
             <input type="text"
                    name="message"
                    placeholder="메시지"
@@ -207,7 +216,7 @@ def render_chat_interface(conversation) -> str:
                      text-gray-700
                    "
                    required />
-            <!-- 오른쪽만 둥글게, 왼쪽은 안 둥글게 + 크게 보이도록 패딩 조정 -->
+            <!-- 오른쪽만 둥글게 + 크게 보이도록 패딩 조정 -->
             <button type="submit"
                     class="
                       bg-gradient-to-r from-gray-900 to-gray-700
@@ -245,7 +254,7 @@ def render_chat_interface(conversation) -> str:
 
 def init_conversation(session_id: str):
     system_message = (
-        "시스템 안내: 당신은 현대불교신문의 Ai입니다. "
+        "시스템 안내: 당신은 한마음선원 현대불교신문의 Ai입니다. "
         "항상 친근하고 예의바르게, 그 신문의 명예와 위상을 높이는 답변을 제공하며, "
         "사용자의 질문에 대해 상세하고 정확하게, 그리고 매우 호의적으로 응답합니다."
     )
