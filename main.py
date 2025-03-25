@@ -154,7 +154,7 @@ def render_chat_interface(conversation) -> str:
           <!-- 상단부(로고 + 리셋 버튼) -->
           <div class="flex items-center justify-between">
             <img 
-              src="https://raw.githubusercontent.com/buddhai/hyundai/master/image6.png"
+              src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo6.png"
               alt="현대불교 로고"
               class="h-10"
             />
