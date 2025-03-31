@@ -259,7 +259,7 @@ def init_conversation(session_id: str):
     )
     initial_message = (
         "모든 답은 당신 안에 있습니다. 저는 그 여정을 함께하는\n"
-        "현대불교신문 상담Ai입니다.\n"
+        "현대불교신문 Ai상담봇 해심이입니다.\n"
         "무엇이 궁금하신가요?"
     )
     # 대화 기록 초기화
