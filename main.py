@@ -164,7 +164,7 @@ def render_chat_interface(conversation) -> str:
             <img 
               src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo01.png"
               alt="현대불교신문 Ai상담봇 해심이 로고"
-              class="h-5"
+              class="h-6"
             />
             <!-- 새로고침 버튼 -->
             <form action="/reset" method="get" class="flex justify-end">
