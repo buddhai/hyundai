@@ -182,7 +182,9 @@ def render_chat_interface(conversation) -> str:
           </div>
           <!-- 안내 문구 -->
           <div class="text-gray-500 text-xs text-center mt-2">
-            AI상담봇은 데이터 기반의 정보를 제공하므로<br>일부 부정확한 답변이 제시될 수 있습니다.
+            AI상담봇은 데이터 기반의 정보를 제공하므로
+            <span class="block md:hidden"><br></span>
+            일부 부정확한 답변이 제시될 수 있습니다.
           </div>
         </div>
 
