@@ -160,11 +160,11 @@ def render_chat_interface(conversation) -> str:
         <div id="chat-header">
           <!-- 로고+리셋 버튼 한 줄 배치 -->
           <div class="flex items-center justify-between w-full">
-            <!-- 로고(이미지) -->
+            <!-- 로고(이미지): 모바일은 h-6, PC는 h-10 -->
             <img 
               src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo01.png"
               alt="현대불교신문 Ai상담봇 해심이 로고"
-              class="h-6"
+              class="h-7 md:h-10"
             />
             <!-- 새로고침 버튼 -->
             <form action="/reset" method="get" class="flex justify-end">
@@ -370,58 +370,4 @@ async def message_init(
         </div>
         """
         placeholder_html = f"""
-        <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
-            <div class="bubble bg-gray-200 border-l-2 border-teal-400 {BASE_BUBBLE_CLASS}" style="max-width:70%;"
-                 id="ai-msg-{placeholder_id}"
-                 hx-get="/message?phase=answer&placeholder_id={placeholder_id}"
-                 hx-trigger="load"
-                 hx-target="#assistant-block-{placeholder_id}"
-                 hx-swap="outerHTML">
-                답변 생성 중...
-            </div>
-        </div>
-        """
-        return HTMLResponse(content=user_message_html + placeholder_html)
-    
-    return HTMLResponse("Invalid phase", status_code=400)
-
-@app.get("/message", response_class=HTMLResponse)
-async def message_answer(
-    request: Request,
-    placeholder_id: str = Query(None),
-    phase: str = Query(None)
-):
-    if phase != "answer":
-        return HTMLResponse("Invalid phase", status_code=400)
-    
-    session_id = request.session.get("session_id")
-    if not session_id:
-        return HTMLResponse("Session not found", status_code=400)
-    
-    conv = get_conversation(session_id)
-    ai_reply = await get_assistant_reply(conv)
-    
-    # 대화 기록에 Ai 응답 업데이트
-    if conv["messages"] and conv["messages"][-1]["role"] == "assistant":
-        conv["messages"][-1]["content"] = ai_reply
-    else:
-        conv["messages"].append({"role": "assistant", "content": ai_reply})
-    
-    final_ai_html = f"""
-    <div class="chat-message assistant-message flex mb-4 items-start animate-fadeIn" id="assistant-block-{placeholder_id}">
-        <div class="bubble bg-gray-200 border-l-2 border-teal-400 {BASE_BUBBLE_CLASS}" style="max-width:70%;">
-            {convert_newlines_to_br(ai_reply)}
-        </div>
-    </div>
-    """
-    return HTMLResponse(content=final_ai_html)
-
-@app.get("/reset")
-async def reset_conversation(request: Request):
-    session_id = request.session.get("session_id")
-    if session_id and session_id in conversation_store:
-        del conversation_store[session_id]
-    return RedirectResponse(url="/", status_code=302)
-
-if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+        <div class="chat-message assistant-message flex
