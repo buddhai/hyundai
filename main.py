@@ -180,10 +180,9 @@ def render_chat_interface(conversation) -> str:
               </button>
             </form>
           </div>
-          <!-- 안내 문구(두 줄) -->
+          <!-- 안내 문구 -->
           <div class="text-gray-500 text-xs text-center mt-2">
-            현대불교신문 상담Ai는 실수를 할 수 있습니다.<br class="block md:hidden">
-            다소 부정확한 답변이 있어도 양해바랍니다.
+            AI상담봇은 데이터 기반의 정보를 제공하므로 일부 부정확한 답변이 제시될 수 있습니다.
           </div>
         </div>
 
