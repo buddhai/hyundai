@@ -157,7 +157,7 @@ def render_chat_interface(conversation) -> str:
           <div class="flex items-center justify-between w-full">
             <!-- 로고(이미지) -->
             <img 
-              src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo8.png"
+              src="https://raw.githubusercontent.com/buddhai/hyundai/master/logo01.png"
               alt="현대불교신문 Ai상담봇 해심이 로고"
               class="h-10"
             />
@@ -182,7 +182,7 @@ def render_chat_interface(conversation) -> str:
           </div>
           <!-- 안내 문구 -->
           <div class="text-gray-500 text-xs text-center mt-2">
-            AI상담봇은 데이터 기반의 정보를 제공하므로 일부 부정확한 답변이 제시될 수 있습니다.
+            AI상담봇은 데이터 기반의 정보를 제공하므로<br>일부 부정확한 답변이 제시될 수 있습니다.
           </div>
         </div>
 
